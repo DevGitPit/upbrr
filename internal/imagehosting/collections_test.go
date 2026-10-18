@@ -160,7 +160,7 @@ func TestCollectionServiceUnknownOutcomePreventsRecreation(t *testing.T) {
 				t.Fatalf("result=%+v error=%v", result, err)
 			}
 			operation, ok := api.AsOperationFailure(err)
-			if !ok || operation.Code != api.OperationFailureUnknownOutcome {
+			if !ok || operation.Code != api.OperationFailureUnknownOutcome || operation.Recovery != api.OperationRecoveryNone {
 				t.Fatalf("missing typed unknown outcome: %v", err)
 			}
 			calls := remote.requests
@@ -301,7 +301,7 @@ func (r *collectionTestRepository) ReserveImageCollection(_ context.Context, _ a
 	}
 	for _, existing := range r.records {
 		if !existing.Completed && existing.ContentFingerprint == record.ContentFingerprint {
-			return nil, false, nil
+			return &existing, false, nil
 		}
 	}
 	if r.records == nil {
@@ -323,18 +323,24 @@ func (r *collectionTestRepository) CompleteImageCollection(_ context.Context, _ 
 		return r.completeErr
 	}
 	record.Members = slices.Clone(record.Members)
+	if existing, ok := r.records[record.Fingerprint]; !ok || existing.AttemptID != record.AttemptID || existing.Completed {
+		return errors.New("stale attempt")
+	}
 	r.records[record.Fingerprint] = record
 	return nil
 }
 
-func (r *collectionTestRepository) ReleaseImageCollection(_ context.Context, _ api.PreparedMediaBinding, fingerprint string) error {
+func (r *collectionTestRepository) ReleaseImageCollection(_ context.Context, _ api.PreparedMediaBinding, record api.ImageCollection) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.releases++
 	if r.releaseErr != nil {
 		return r.releaseErr
 	}
-	delete(r.records, fingerprint)
+	if existing, ok := r.records[record.Fingerprint]; !ok || existing.AttemptID != record.AttemptID || existing.Completed {
+		return errors.New("stale attempt")
+	}
+	delete(r.records, record.Fingerprint)
 	return nil
 }
 
@@ -577,4 +583,52 @@ func TestCollectionServiceReleasesMissingBootstrapTokenReservation(t *testing.T)
 			}
 		})
 	}
+}
+
+func TestCollectionServiceUnknownOutcomeRetainsExactConfirmationAuthority(t *testing.T) {
+	t.Parallel()
+	repo := &collectionTestRepository{}
+	remote := &collectionTestRemote{t: t, createStatus: http.StatusServiceUnavailable}
+	service, subject, input := collectionTestSetup(t, repo, remote)
+	reporter := &collectionEffectTestReporter{}
+	ctx := api.WithWorkflowExternalEffectReporter(t.Context(), reporter)
+	_, err := service.UploadCollection(ctx, subject, input, false)
+	var outcome *api.ImageCollectionOutcomeError
+	if !errors.As(err, &outcome) || outcome.AttemptID == "" {
+		t.Fatalf("missing exact attempt: %v", err)
+	}
+	failure, ok := api.AsOperationFailure(err)
+	if !ok || failure.Recovery != api.OperationRecoveryConfirm {
+		t.Fatalf("confirmation unavailable: %v", err)
+	}
+	if len(reporter.effects) != 1 || reporter.effects[0].ScopeID != api.ImageCollectionEffectScope(outcome.AttemptID) || reporter.completions != 0 {
+		t.Fatalf("effect authority = %#v", reporter)
+	}
+	calls := remote.requests
+	originalAttempt := outcome.AttemptID
+	input.Generation = "another-generation"
+	_, err = service.UploadCollection(ctx, subject, input, false)
+	if !errors.As(err, &outcome) || outcome.AttemptID != originalAttempt || remote.requests != calls || remote.creates != 1 || repo.releases != 0 {
+		t.Fatalf("retry changed attempt or made request: %v", err)
+	}
+	if len(reporter.effects) != 2 || reporter.completions != 1 {
+		t.Fatalf("unused competing effect not settled: %#v", reporter)
+	}
+}
+
+type collectionEffectTestReporter struct {
+	effects     []api.WorkflowExternalEffect
+	completions int
+}
+
+func (r *collectionEffectTestReporter) Begin(_ context.Context, effect api.WorkflowExternalEffect) (api.WorkflowExternalEffectReceipt, error) {
+	r.effects = append(r.effects, effect)
+	return api.WorkflowExternalEffectReceipt{EffectID: "effect-" + strconv.Itoa(len(r.effects))}, nil
+}
+func (r *collectionEffectTestReporter) Complete(_ context.Context, _ api.WorkflowExternalEffectReceipt, succeeded bool) error {
+	if succeeded {
+		return errors.New("collection completion must be atomic with its reservation")
+	}
+	r.completions++
+	return nil
 }

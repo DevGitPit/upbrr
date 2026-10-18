@@ -5,6 +5,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -131,5 +132,30 @@ func TestCollectionSkipPreservesStatsAndNeverOrdinaryUploads(t *testing.T) {
 	}
 	if _, err := builder.media.uploadImagesToTarget(t.Context(), api.UploadSubject{}, trackers.ImageUploadTarget{Host: "slowpics"}, []api.ScreenshotImage{image}, nil, nil, false); err == nil {
 		t.Fatal("ordinary target accepted slowpics")
+	}
+}
+
+func TestCollectionDescriptionOutcomeRequiresExactConfirmation(t *testing.T) {
+	cause := api.NewOperationError(api.OperationFailure{
+		Code:      api.OperationFailureUnknownOutcome,
+		Operation: api.OperationKindImageHosting,
+		Recovery:  api.OperationRecoveryConfirm,
+		Message:   "Uncertain collection",
+	}, nil)
+	outcome := &api.ImageCollectionOutcomeError{AttemptID: "exact-attempt", Cause: cause}
+	descriptions, err := collectionDescriptionOutcome(outcome, "input", "template")
+	if err != nil || descriptions.Status != api.StageStatusBlocked || len(descriptions.RequiredActions) != 1 {
+		t.Fatalf("blocked description = %#v, %v", descriptions, err)
+	}
+	action := descriptions.RequiredActions[0]
+	if action.Kind != api.RequiredActionReconcileSubmission || action.EffectKind != api.WorkflowExternalEffectImageHosting || action.EffectScopeID != api.ImageCollectionEffectScope("exact-attempt") || len(action.Options) != 1 || action.Options[0].Value != api.RequiredActionReconcileNotCompleted || action.Options[0].Label != "I verified no collection was created" {
+		t.Fatalf("confirmation = %#v", action)
+	}
+	if descriptions.InputFingerprint != "input" || descriptions.TemplateFingerprint != "template" || len(descriptions.Failures) != 1 || descriptions.Failures[0].Resource != action.EffectScopeID {
+		t.Fatalf("lost description authority: %#v", descriptions)
+	}
+	_, err = collectionDescriptionOutcome(cause, "input", "template")
+	if !errors.Is(err, cause) {
+		t.Fatalf("unscoped error became actionable: %v", err)
 	}
 }

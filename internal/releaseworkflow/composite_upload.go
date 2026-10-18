@@ -60,9 +60,11 @@ type compositeUploadManualMedia struct {
 }
 
 type compositeUploadFeedbackReceipt struct {
-	Fingerprint api.WorkflowFingerprint `json:"fingerprint"`
-	Revision    api.WorkflowRevision    `json:"revision"`
-	Sequence    uint64                  `json:"sequence"`
+	// StopAfterReconciliation prevents confirmation replay from uploading a collection.
+	StopAfterReconciliation bool                    `json:"stopAfterReconciliation,omitempty"`
+	Fingerprint             api.WorkflowFingerprint `json:"fingerprint"`
+	Revision                api.WorkflowRevision    `json:"revision"`
+	Sequence                uint64                  `json:"sequence"`
 }
 
 type compositeUploadMediaInputsContextKey struct{}
@@ -524,12 +526,13 @@ func (m *Module) ensureCompositeUploadMediaInputs(
 	}
 	attachments := make([]api.MediaAttachment, 0, len(inputs.Comparisons)+len(inputs.DVDMenus))
 	stage := func(content StagedMediaContent, kind api.MediaArtifactKind, purpose api.ScreenshotPurpose) error {
+		if kind == api.MediaArtifactDVDMenu {
+			content.ComparisonGroup, content.ComparisonLabel, content.ComparisonMemberLabel = "", "", ""
+			content.ComparisonCount = 0
+		}
 		resource, stageErr := m.StageMediaResource(ctx, ownerID, workflowID, expectedRevision, content)
 		if stageErr != nil {
 			return stageErr
-		}
-		if kind == api.MediaArtifactDVDMenu {
-			content.ComparisonGroup, content.ComparisonLabel, content.ComparisonMemberLabel = "", "", ""
 		}
 		attachments = append(attachments, api.MediaAttachment{
 			ComparisonGroup:       content.ComparisonGroup,
@@ -2059,7 +2062,7 @@ func (m *Module) SubmitUploadFeedback(
 			return CommandResult{}, fmt.Errorf("%w: composite upload session is unavailable", ErrInvalidTransition)
 		}
 		compositeReceipt, retained := state.Composite.FeedbackReceipts[feedback.IdempotencyKey]
-		if !retained {
+		if !retained || compositeReceipt.StopAfterReconciliation {
 			return m.Current(ctx, ownerID, workflowID)
 		}
 		operation, startErr := m.Start(ctx, ownerID, CompositeUploadCommand{
@@ -2112,6 +2115,9 @@ func (m *Module) SubmitUploadFeedback(
 	result, err := m.execute(ctx, ownerID, feedbackCommand)
 	if err != nil {
 		return CommandResult{}, err
+	}
+	if action.EffectKind == api.WorkflowExternalEffectImageHosting && api.IsImageCollectionEffectScope(action.EffectScopeID) {
+		return result, nil
 	}
 	state, err = m.repository.Load(ctx, ownerID, workflowID)
 	if err != nil {
@@ -2448,9 +2454,10 @@ func (m *Module) applyCompositeUploadFeedback(
 		return CommandResult{}, fmt.Errorf("release workflow fingerprint retained upload feedback: %w", err)
 	}
 	state.Composite.FeedbackReceipts[command.IdempotencyKey] = compositeUploadFeedbackReceipt{
-		Fingerprint: fingerprint,
-		Revision:    nextRevision,
-		Sequence:    state.Composite.FeedbackSequence,
+		StopAfterReconciliation: action.EffectKind == api.WorkflowExternalEffectImageHosting && api.IsImageCollectionEffectScope(action.EffectScopeID),
+		Fingerprint:             fingerprint,
+		Revision:                nextRevision,
+		Sequence:                state.Composite.FeedbackSequence,
 	}
 	return result, nil
 }

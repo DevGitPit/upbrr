@@ -202,3 +202,31 @@ func hdrCollectionCategory(kind api.HDRArtifactKind) string {
 		return "Plots"
 	}
 }
+
+func collectionDescriptionOutcome(err error, input, template api.WorkflowFingerprint) (api.DescriptionSet, error) {
+	var outcome *api.ImageCollectionOutcomeError
+	if !errors.As(err, &outcome) || outcome.AttemptID == "" {
+		return api.DescriptionSet{}, err
+	}
+	failure, ok := api.AsOperationFailure(err)
+	if !ok {
+		return api.DescriptionSet{}, err
+	}
+	scope := api.ImageCollectionEffectScope(outcome.AttemptID)
+	return api.DescriptionSet{
+		InputFingerprint:    input,
+		TemplateFingerprint: template,
+		Status:              api.StageStatusBlocked,
+		Failures:            []api.WorkflowFailure{{Failure: failure, Resource: scope}},
+		RequiredActions: []api.RequiredAction{
+			{
+				Kind:          api.RequiredActionReconcileSubmission,
+				Status:        api.RequiredActionStatusPending,
+				EffectKind:    api.WorkflowExternalEffectImageHosting,
+				EffectScopeID: scope,
+				Prompt:        "Check slow.pics for this uncertain upload. Confirm only after verifying that no collection was created. This clears the block without uploading; retry description generation separately.",
+				Options:       []api.RequiredActionOption{{Value: api.RequiredActionReconcileNotCompleted, Label: "I verified no collection was created"}},
+			},
+		},
+	}, nil
+}

@@ -581,6 +581,7 @@ type DurabilityRepository interface {
 	CompleteEffect(context.Context, api.WorkflowEffectStatus, api.ReleaseWorkflowEffectRecord) error
 	MarkOperationEffectsUnknown(context.Context, string, api.WorkflowID, api.WorkflowOperationID, time.Time) error
 	RecoverLegacyEffects(context.Context, string, api.WorkflowID, time.Time) ([]api.ReleaseWorkflowEffectRecord, error)
+	ListUnknownCollectionEffects(context.Context, string, api.WorkflowID) ([]api.ReleaseWorkflowEffectRecord, error)
 	ListLegacyRecoveryWorkflowIDs(context.Context, string) ([]api.WorkflowID, error)
 	ResolveEffectUnknown(context.Context, string, api.WorkflowID, api.WorkflowExternalEffectKind, string, time.Time) error
 	LoadWork(context.Context, string, api.WorkflowID, api.WorkflowOperationID) (api.ReleaseWorkflowWorkRecord, error)

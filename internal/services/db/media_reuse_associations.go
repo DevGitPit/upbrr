@@ -583,16 +583,27 @@ func normalizeReusableMediaAssets(
 	return normalized, nil
 }
 
-// migrateAddComparisonProvenance preserves explicit attachment set boundaries on reuse.
+// migrateAddComparisonProvenance adds missing attachment set columns while
+// preserving any existing comparison provenance.
 func migrateAddComparisonProvenance(ctx context.Context, exec migrationExecutor) error {
-	for _, statement := range []string{
-		"ALTER TABLE media_reusable_assets ADD COLUMN comparison_group TEXT NOT NULL DEFAULT ''",
-		"ALTER TABLE media_reusable_assets ADD COLUMN comparison_count INTEGER NOT NULL DEFAULT 0",
-		"ALTER TABLE media_reusable_assets ADD COLUMN comparison_label TEXT NOT NULL DEFAULT ''",
-		"ALTER TABLE media_reusable_assets ADD COLUMN comparison_member_label TEXT NOT NULL DEFAULT ''",
+	for _, column := range []struct {
+		name       string
+		definition string
+	}{
+		{name: "comparison_group", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "comparison_count", definition: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "comparison_label", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "comparison_member_label", definition: "TEXT NOT NULL DEFAULT ''"},
 	} {
-		if _, err := exec.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("add comparison provenance: %w", err)
+		exists, err := tableColumnExists(ctx, exec, "media_reusable_assets", column.name)
+		if err != nil {
+			return fmt.Errorf("db: inspect comparison provenance column %s: %w", column.name, err)
+		}
+		if exists {
+			continue
+		}
+		if _, err := exec.ExecContext(ctx, fmt.Sprintf("ALTER TABLE media_reusable_assets ADD COLUMN %s %s", column.name, column.definition)); err != nil {
+			return fmt.Errorf("db: add comparison provenance column %s: %w", column.name, err)
 		}
 	}
 	return nil

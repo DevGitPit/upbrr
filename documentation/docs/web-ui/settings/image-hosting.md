@@ -79,5 +79,11 @@ A collection link is retained only after every member succeeds. If creation or
 member upload has an uncertain outcome, automatic recreation is blocked across
 restarts, including an unchanged set in a new preparation generation. Local
 images are preserved. There is no automatic remote cleanup or account-login
-support; verify an uncertain upload before arranging recovery. Cloudflare
-blocking is reported without bypassing it.
+support. Check slow.pics before resolving an uncertain attempt. Only select
+**I verified no collection was created** after confirming that no remote set
+exists. This releases that attempt's block without uploading anything. Retry
+description generation separately when ready. An upload still in progress cannot
+be cleared, and a stale confirmation cannot clear a newer attempt. Older
+reservations created before this recovery mechanism remain blocked because they
+lack the authority needed for a safe reset. Cloudflare blocking is reported
+without bypassing it.

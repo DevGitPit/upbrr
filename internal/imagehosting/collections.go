@@ -5,6 +5,7 @@ package imagehosting
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -21,7 +22,7 @@ type collectionRepository interface {
 	ReserveImageCollection(context.Context, api.PreparedMediaBinding, api.ImageCollection) (*api.ImageCollection, bool, error)
 	LoadImageCollection(context.Context, api.PreparedMediaBinding, string) (*api.ImageCollection, error)
 	CompleteImageCollection(context.Context, api.PreparedMediaBinding, api.ImageCollection) error
-	ReleaseImageCollection(context.Context, api.PreparedMediaBinding, string) error
+	ReleaseImageCollection(context.Context, api.PreparedMediaBinding, api.ImageCollection) error
 }
 
 // UploadCollection hosts one exact permitted set. skip permits only complete
@@ -110,7 +111,7 @@ func (s *Service) UploadCollection(
 			if skip {
 				return nil, nil
 			}
-			return nil, collectionUnknownOutcome()
+			return nil, collectionUnknownOutcome(existing)
 		}
 		if !collectionResultMatches(*existing, record) {
 			return nil, errors.New("image hosting: stored collection is invalid")
@@ -120,7 +121,22 @@ func (s *Service) UploadCollection(
 	if skip {
 		return nil, nil
 	}
+	record.AttemptID = rand.Text()
+	receipt, err := api.BeginWorkflowExternalEffect(ctx, api.WorkflowExternalEffect{
+		Kind:                api.WorkflowExternalEffectImageHosting,
+		ScopeID:             api.ImageCollectionEffectScope(record.AttemptID),
+		SemanticFingerprint: contentFingerprint,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("image hosting: fence collection attempt: %w", err)
+	}
+	record.EffectID = receipt.EffectID
 	existing, acquired, err := repo.ReserveImageCollection(ctx, subject.MediaBinding, record)
+	if err != nil || !acquired {
+		if completeErr := api.CompleteWorkflowExternalEffect(context.WithoutCancel(ctx), receipt, false); completeErr != nil {
+			return nil, fmt.Errorf("image hosting: finish unused collection attempt: %w", completeErr)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("image hosting: reserve collection: %w", err)
 	}
@@ -128,42 +144,50 @@ func (s *Service) UploadCollection(
 		if existing != nil && collectionResultMatches(*existing, record) {
 			return existing, nil
 		}
-		return nil, collectionUnknownOutcome()
+		return nil, collectionUnknownOutcome(existing)
 	}
 	s.logger.Infof("image hosting: collection upload started host=slowpics purpose=%s members=%d", input.Purpose, len(images))
 	uploader := slowpicsUploader{client: s.client}
 	result, err := uploader.uploadValidatedCollection(ctx, request, images)
 	if err != nil {
 		if errors.Is(err, errSlowpicsOutcomeUnknown) {
-			return nil, collectionUnknownOutcome()
+			return nil, collectionUnknownOutcome(&record)
 		}
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
-		if releaseErr := repo.ReleaseImageCollection(cleanupCtx, subject.MediaBinding, record.Fingerprint); releaseErr != nil {
-			return nil, collectionUnknownOutcome()
+		if releaseErr := repo.ReleaseImageCollection(cleanupCtx, subject.MediaBinding, record); releaseErr != nil {
+			return nil, collectionUnknownOutcome(&record)
 		}
 		return nil, err
 	}
 	record.URL, record.Completed = string(result), true
 	if err := record.Validate(); err != nil {
-		return nil, collectionUnknownOutcome()
+		return nil, collectionUnknownOutcome(&record)
 	}
 	completionCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
 	if err := repo.CompleteImageCollection(completionCtx, subject.MediaBinding, record); err != nil {
-		return nil, collectionUnknownOutcome()
+		return nil, collectionUnknownOutcome(&record)
 	}
 	s.logger.Infof("image hosting: collection upload completed host=slowpics purpose=%s members=%d", input.Purpose, len(images))
 	return &record, nil
 }
 
-func collectionUnknownOutcome() error {
-	return api.NewOperationError(api.OperationFailure{
+func collectionUnknownOutcome(record *api.ImageCollection) error {
+	failure := api.OperationFailure{
 		Code:      api.OperationFailureUnknownOutcome,
 		Operation: api.OperationKindImageHosting,
-		Message:   "A slow.pics collection may already exist. Verify the previous upload before retrying; automatic recreation is blocked.",
-		Recovery:  api.OperationRecoveryConfirm,
-	}, errSlowpicsOutcomeUnknown)
+		Message:   "A slow.pics collection may already exist. Automatic recreation is blocked; verify the remote outcome before retrying.",
+		Recovery:  api.OperationRecoveryNone,
+	}
+	attemptID := ""
+	if record != nil && record.AttemptID != "" && record.EffectID != "" {
+		attemptID = record.AttemptID
+		failure.Recovery = api.OperationRecoveryConfirm
+	} else {
+		failure.Message = "A slow.pics collection may already exist. This earlier reservation lacks recovery authority and remains blocked."
+	}
+	return &api.ImageCollectionOutcomeError{AttemptID: attemptID, Cause: api.NewOperationError(failure, errSlowpicsOutcomeUnknown)}
 }
 
 func collectionResultMatches(existing, expected api.ImageCollection) bool {

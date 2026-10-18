@@ -29,6 +29,7 @@ func TestImageCollectionReservationSurvivesReopen(t *testing.T) {
 	binding := testPreparedMediaBinding(filepath.Join(t.TempDir(), "Synthetic.mkv"))
 	record := api.ImageCollection{
 		Fingerprint:        "set",
+		AttemptID:          "first-attempt",
 		ContentFingerprint: "content",
 		Host:               "slowpics",
 		Purpose:            api.ScreenshotPurposeComparison,
@@ -60,8 +61,9 @@ func TestImageCollectionReservationSurvivesReopen(t *testing.T) {
 	next.PreparedGeneration++
 	newer := record
 	newer.Fingerprint = "new-generation"
-	_, acquired, err = repo.ReserveImageCollection(t.Context(), next, newer)
-	if err != nil || acquired {
+	newer.AttemptID = "new-attempt"
+	pending, acquired, err = repo.ReserveImageCollection(t.Context(), next, newer)
+	if err != nil || acquired || pending == nil || pending.AttemptID != record.AttemptID {
 		t.Fatalf("generation bypassed pending fence: %t %v", acquired, err)
 	}
 	record.URL, record.Completed = "https://slow.pics/c/synthetic", true
@@ -72,7 +74,7 @@ func TestImageCollectionReservationSurvivesReopen(t *testing.T) {
 	if err != nil || !acquired || completed != nil {
 		t.Fatalf("new exact set = %#v %t %v", completed, acquired, err)
 	}
-	if err := repo.ReleaseImageCollection(t.Context(), binding, newer.Fingerprint); err != nil {
+	if err := repo.ReleaseImageCollection(t.Context(), binding, newer); err != nil {
 		t.Fatal(err)
 	}
 	cached, err := repo.LoadImageCollection(t.Context(), binding, record.Fingerprint)
@@ -125,6 +127,50 @@ func TestImageCollectionMigrationPreservesLegacyReusableAssets(t *testing.T) {
 	legacy.Image.ComparisonMemberLabel = "Source"
 	if err != nil || len(loaded) != 1 || !reflect.DeepEqual(loaded[0], legacy) {
 		t.Fatalf("repeat upgrade changed explicit provenance: got=%+v want=%+v error=%v", loaded, legacy, err)
+	}
+}
+
+func TestImageCollectionMigrationPreservesExistingProvenanceColumns(t *testing.T) {
+	t.Parallel()
+	for _, allColumns := range []bool{false, true} {
+		t.Run(fmt.Sprintf("all_columns_%t", allColumns), func(t *testing.T) {
+			t.Parallel()
+			repo, expected := imageCollectionPriorMigrationFixture(t)
+			statements := []string{
+				`ALTER TABLE media_reusable_assets ADD COLUMN comparison_group TEXT NOT NULL DEFAULT ''`,
+				`ALTER TABLE media_reusable_assets ADD COLUMN comparison_member_label TEXT NOT NULL DEFAULT ''`,
+				`UPDATE media_reusable_assets SET comparison_group = 'synthetic-group', comparison_member_label = 'Source'`,
+			}
+			expected.Image.ComparisonGroup = "synthetic-group"
+			expected.Image.ComparisonMemberLabel = "Source"
+			if allColumns {
+				statements = append(statements,
+					`ALTER TABLE media_reusable_assets ADD COLUMN comparison_count INTEGER NOT NULL DEFAULT 0`,
+					`ALTER TABLE media_reusable_assets ADD COLUMN comparison_label TEXT NOT NULL DEFAULT ''`,
+					`UPDATE media_reusable_assets SET comparison_count = 2, comparison_label = 'Synthetic comparison'`,
+				)
+				expected.Image.ComparisonCount = 2
+				expected.Image.ComparisonLabel = "Synthetic comparison"
+			}
+			for _, statement := range statements {
+				if _, err := repo.RawDB().ExecContext(t.Context(), statement); err != nil {
+					t.Fatalf("seed existing provenance: %v", err)
+				}
+			}
+			if err := repo.MigrateContext(t.Context()); err != nil {
+				t.Fatalf("upgrade existing provenance: %v", err)
+			}
+			if err := migrateAddComparisonProvenance(t.Context(), repo.RawDB()); err != nil {
+				t.Fatalf("reapply provenance migration: %v", err)
+			}
+			loaded, err := repo.LoadReusableMediaAssets(t.Context(), expected.CompatibilityKey)
+			if err != nil || len(loaded) != 1 || !reflect.DeepEqual(loaded[0], expected) {
+				t.Fatalf("upgrade changed existing provenance or legacy row: got=%+v want=%+v error=%v", loaded, expected, err)
+			}
+			if !slices.Contains(readSchemaMigrationIDs(t, repo.RawDB()), "2026_10_add_comparison_provenance") {
+				t.Fatal("upgrade did not record provenance migration")
+			}
+		})
 	}
 }
 

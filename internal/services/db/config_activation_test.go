@@ -1003,3 +1003,55 @@ func TestActivateConfigTxTransformsIdleActiveWorkflowAndAdvancesSlot(t *testing.
 		t.Fatalf("active input revision = %d, want 6", slot.Revision)
 	}
 }
+
+func TestStartupPreservesCollectionRecoveryWithoutAllowingSettingsChanges(t *testing.T) {
+	repo, ctx, binding, record, effect := collectionRecoveryFixture(t)
+	if _, acquired, err := repo.ReserveImageCollection(ctx, binding, record); err != nil || !acquired {
+		t.Fatalf("reserve collection: acquired=%v err=%v", acquired, err)
+	}
+	unrelated := effect
+	unrelated.EffectID, unrelated.ScopeID = "unrelated-effect", "ordinary-image"
+	if _, _, err := repo.BeginReleaseWorkflowEffect(ctx, unrelated); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if effects, fences, err := repo.DiscardUnresolvedWorkflowEffectsOnStartup(t.Context(), now); !errors.Is(err, api.ErrActiveInputBusy) || effects != 0 || fences != 0 {
+		t.Fatalf("live collection lease: effects=%d fences=%d err=%v", effects, fences, err)
+	}
+	active, err := repo.LoadActiveInput(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.RelinquishActiveInput(ctx, active.CoordinatorID, active.Fence, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.db.ExecContext(ctx, `UPDATE release_workflow_operations SET status = 'failed' WHERE operation_id = ?`, effect.OperationID); err != nil {
+		t.Fatal(err)
+	}
+	if effects, fences, err := repo.DiscardUnresolvedWorkflowEffectsOnStartup(t.Context(), now.Add(time.Second)); err != nil || effects != 1 || fences != 0 {
+		t.Fatalf("startup discard: effects=%d fences=%d err=%v", effects, fences, err)
+	}
+	latest, err := loadLatestReleaseWorkflowEffect(ctx, repo.db, effect.OwnerID, effect.WorkflowID, effect.Kind, effect.ScopeID)
+	if err != nil || latest.Status != api.WorkflowEffectStatusUnknown {
+		t.Fatalf("collection effect lost: %#v err=%v", latest, err)
+	}
+	retained, err := repo.LoadImageCollection(ctx, binding, record.Fingerprint)
+	if err != nil || retained == nil || retained.AttemptID != record.AttemptID {
+		t.Fatalf("collection reservation lost: %#v err=%v", retained, err)
+	}
+	if err := repo.withWriteTx(t.Context(), "test startup collection recovery", func(tx *sql.Tx) error {
+		_, err := requireStartupConfigActivationSafe(t.Context(), tx)
+		return err
+	}); err != nil {
+		t.Fatalf("startup recovery blocked: %v", err)
+	}
+	if err := repo.withWriteTx(t.Context(), "test ordinary collection settings", func(tx *sql.Tx) error {
+		_, err := requireConfigActivationSafe(t.Context(), tx)
+		return err
+	}); !errors.Is(err, api.ErrReleaseWorkflowEffectOutcomeUnknown) {
+		t.Fatalf("ordinary settings bypassed unresolved collection: %v", err)
+	}
+	if effects, fences, err := repo.DiscardUnresolvedWorkflowEffectsOnStartup(t.Context(), now.Add(2*time.Second)); err != nil || effects != 0 || fences != 0 {
+		t.Fatalf("repeated startup: effects=%d fences=%d err=%v", effects, fences, err)
+	}
+}

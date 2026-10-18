@@ -21,15 +21,18 @@ type ImageCollectionMember struct {
 type ImageCollection struct {
 	// ContentFingerprint fences ambiguous attempts even across preparation generations.
 	ContentFingerprint string
-	Fingerprint        string
-	Host               string
-	URL                string
-	Purpose            ScreenshotPurpose
-	Category           string
-	Label              string
-	AccountScope       string
-	Completed          bool
-	Members            []ImageCollectionMember
+	// AttemptID and EffectID bind private reservation writes to one durable attempt.
+	AttemptID    string `json:"AttemptID,omitempty"`
+	EffectID     string `json:"EffectID,omitempty"`
+	Fingerprint  string
+	Host         string
+	URL          string
+	Purpose      ScreenshotPurpose
+	Category     string
+	Label        string
+	AccountScope string
+	Completed    bool
+	Members      []ImageCollectionMember
 }
 
 // ImageCollectionInput is private workflow authority for one flat, ordered set.
@@ -117,3 +120,21 @@ func ValidImageCollectionCategory(purpose ScreenshotPurpose, category string) bo
 	return purpose == ScreenshotPurposeHDRAnalysis &&
 		(category == "Audio Plots" || category == "Plots" || category == "Grade Checks" || category == "Alignment Checks")
 }
+
+// ImageCollectionEffectScope binds reconciliation to one attempt, never all sets.
+func ImageCollectionEffectScope(attemptID string) string { return "slowpics_collection:" + attemptID }
+
+// IsImageCollectionEffectScope distinguishes collection recovery from individual images.
+func IsImageCollectionEffectScope(scope string) bool {
+	return strings.HasPrefix(scope, "slowpics_collection:") && len(scope) > len("slowpics_collection:")
+}
+
+// ImageCollectionOutcomeError carries the durable attempt behind a safe failure.
+// An empty attempt cannot authorize recovery of a legacy or unmanaged reservation.
+type ImageCollectionOutcomeError struct {
+	AttemptID string
+	Cause     error
+}
+
+func (e *ImageCollectionOutcomeError) Error() string { return e.Cause.Error() }
+func (e *ImageCollectionOutcomeError) Unwrap() error { return e.Cause }

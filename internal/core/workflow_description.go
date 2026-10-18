@@ -159,13 +159,13 @@ func (b workflowDescriptionBuilder) Build(
 		}, nil
 	}
 	if err := b.uploadComparisonCollections(ctx, subject, trackerNames); err != nil {
-		return api.DescriptionSet{}, err
+		return collectionDescriptionOutcome(err, inputFingerprint, templateFingerprint)
 	}
 	if err := b.uploadAudioDescriptionImages(ctx, subject, trackerNames); err != nil {
-		return api.DescriptionSet{}, fmt.Errorf("workflow descriptions: upload audio analysis images: %w", err)
+		return collectionDescriptionOutcome(fmt.Errorf("workflow descriptions: upload audio analysis images: %w", err), inputFingerprint, templateFingerprint)
 	}
 	if err := b.uploadHDRDescriptionImages(ctx, subject, trackerNames); err != nil {
-		return api.DescriptionSet{}, fmt.Errorf("workflow descriptions: upload HDR analysis images: %w", err)
+		return collectionDescriptionOutcome(fmt.Errorf("workflow descriptions: upload HDR analysis images: %w", err), inputFingerprint, templateFingerprint)
 	}
 	for _, projection := range descriptionTargets {
 		api.EmitWorkflowProgress(ctx, api.WorkflowProgressUpdate{
