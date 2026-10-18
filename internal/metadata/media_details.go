@@ -1855,7 +1855,8 @@ func editionFromMeta(meta preparationstate.State, doc mediaInfoDoc) releaseEditi
 		}
 		if multi.Set != "" {
 			parts.Set = multi.Set
-			parts.Features = append(parts.Features, multi.Features...)
+			// Preserve the filename feature snapshot before later Hybrid appends.
+			parts.Features = append(slices.Clone(parts.Features), multi.Features...)
 		} else if parts.Set == "" {
 			parts.Set = filenameSet
 		}

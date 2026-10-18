@@ -172,16 +172,19 @@ func TestParserGenericMasteringDoesNotInvent4K(t *testing.T) {
 }
 
 func TestManualEditionClearsAutomaticDisplayProjection(t *testing.T) {
-	for _, overrides := range []api.ReleaseNameOverrides{{Edition: new("Custom wording")}, {Edition: new("")}, {NoEdition: new(true)}} {
+	for _, overrides := range []api.ReleaseNameOverrides{{Edition: new("Custom wording")}, {Edition: new("Hybrid Uncut")}, {Edition: new("")}, {NoEdition: new(true)}} {
 		state := preparationstate.State{
 			Edition:              "Collector's",
 			EditionDisplay:       []api.EditionDisplayPart{{Text: "Collector's"}, {Text: "Restored", Feature: api.ReleaseFeatureRestoration}},
-			ReleaseFeatures:      []api.ReleaseFeature{api.ReleaseFeatureRestoration},
+			ReleaseFeatures:      []api.ReleaseFeature{api.ReleaseFeatureRestoration, api.ReleaseFeatureHybrid},
 			ReleaseNameOverrides: overrides,
 		}
 		applyReleaseNameValueOverrides(&state)
 		if len(state.EditionDisplay) != 0 || len(state.ReleaseFeatures) != 0 {
 			t.Fatalf("automatic projection survived correction: %+v", state)
+		}
+		if overrides.Edition != nil && state.Edition != *overrides.Edition {
+			t.Fatalf("manual wording changed: %q, want %q", state.Edition, *overrides.Edition)
 		}
 	}
 }
@@ -204,5 +207,44 @@ func TestSeparatedDisplayRetainsExistingRifftraxEdition(t *testing.T) {
 	RebuildReleaseName(&state, api.NopLogger{})
 	if parts.Edition != "Rifftrax" || api.EditionDisplayText(parts.EditionDisplay) != "Restored / Rifftrax" || !strings.Contains(state.ReleaseName, "Restored / Rifftrax") {
 		t.Fatalf("parts=%+v name=%q", parts, state.ReleaseName)
+	}
+}
+
+func TestFilenameAndMultiPlaylistFeaturesDoNotOverwriteEachOther(t *testing.T) {
+	state := preparationstate.State{
+		DiscType: "BDMV",
+		Release: api.ReleaseInfo{
+			Cut:   []string{"Uncut"},
+			Other: []string{"2-Disc Set", "4K Remaster", "Extras", "Hybrid"},
+		},
+		SelectedBDMVPlaylists: []api.PlaylistInfo{{Duration: 6000}, {Duration: 6600}},
+		ProviderMetadata: api.SourceScopedMetadata{IMDB: &api.IMDBMetadata{EditionDetails: map[string]api.IMDBEditionDetail{
+			"6000": {
+				Seconds:    6000,
+				Minutes:    100,
+				Attributes: []string{"Extended"},
+			},
+			"6600": {
+				Seconds:    6600,
+				Minutes:    110,
+				Attributes: []string{"Director's Cut", "4K Restoration"},
+			},
+		}}},
+	}
+	parts := editionFromMeta(state, mediaInfoDoc{})
+	if parts.Set != "2in1" || parts.Cut != "Uncut" {
+		t.Fatalf("lost filename/set evidence: %+v", parts)
+	}
+	for _, feature := range []api.ReleaseFeature{api.ReleaseFeatureTwoDiscSet, api.ReleaseFeature4KRemaster, api.ReleaseFeatureExtras, api.ReleaseFeatureHybrid, api.ReleaseFeature4KRestoration} {
+		if !slices.Contains(parts.Features, feature) {
+			t.Errorf("missing feature %s from %v", feature, parts.Features)
+		}
+	}
+}
+
+func TestProviderDisplayFragmentsDoNotInventCompoundMasteringFacts(t *testing.T) {
+	parts := imdbEditionParts([]string{"4K", "restoration"})
+	if parts.Edition != "4K" || !slices.Equal(parts.Features, []api.ReleaseFeature{api.ReleaseFeatureRestoration}) || api.EditionDisplayText(parts.EditionDisplay) != "4K Restoration" {
+		t.Fatalf("provider parts=%+v", parts)
 	}
 }

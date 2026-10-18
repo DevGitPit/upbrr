@@ -629,14 +629,6 @@ func editionFeatures(meta api.UploadSubject) []api.TrackerEditionFeature {
 		}
 	}
 	options := make([]api.TrackerEditionFeature, 0, len(editionFeatureCatalogue)+1)
-	if slices.Contains(meta.ReleaseFeatures, api.ReleaseFeatureHybrid) {
-		options = append(options, api.TrackerEditionFeature{
-			Label:    "Hybrid",
-			Category: "Feature",
-			Selected: true,
-			Evidence: "Prepared mixed-source release marker",
-		})
-	}
 	for _, item := range editionFeatureCatalogue {
 		evidence, present := selected[item.label]
 		if !present {
@@ -653,6 +645,14 @@ func editionFeatures(meta api.UploadSubject) []api.TrackerEditionFeature {
 			Category: item.category,
 			Selected: present,
 			Evidence: evidence,
+		})
+	}
+	if slices.Contains(meta.ReleaseFeatures, api.ReleaseFeatureHybrid) {
+		options = append(options, api.TrackerEditionFeature{
+			Label:    "Hybrid",
+			Category: "Feature",
+			Selected: true,
+			Evidence: "Prepared mixed-source release marker",
 		})
 	}
 	for _, part := range meta.EditionDisplay {
@@ -678,8 +678,8 @@ func editionFeatures(meta api.UploadSubject) []api.TrackerEditionFeature {
 }
 
 // resolveRemasterTitle formats prepared features and legacy display wording.
-// Display text never supplies feature selection; catalogue stripping here only
-// avoids rendering already-selected standardized labels a second time.
+// Display text never supplies feature selection. Catalogue stripping avoids
+// repeating selected labels and retains commentary/theatrical suppression.
 func resolveRemasterTitle(meta api.UploadSubject) string {
 	var labels []string
 	for _, option := range editionFeatures(meta) {
@@ -698,7 +698,8 @@ func resolveRemasterTitle(meta api.UploadSubject) string {
 			residue := value
 			matched := false
 			for _, option := range editionFeatureCatalogue {
-				if option.pattern.MatchString(value) {
+				if (slices.Contains(labels, option.label) || option.label == "With Commentary" || option.label == "Theatrical Cut") &&
+					option.pattern.MatchString(value) {
 					matched = true
 					residue = option.pattern.ReplaceAllString(residue, "")
 				}

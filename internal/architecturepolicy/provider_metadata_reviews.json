@@ -1096,12 +1096,12 @@
     "sha256": "e62b2547dbb023be8c4bfa8e89aa03e908ef2e830218d56eb631c1d8d0cfd205"
   },
   "internal/trackers/impl/standalone/ptp/taxonomy.go:editionFeatures": {
-    "sha256": "f33def9778d7df25690da83164a77209630cc84fc72bf795c0f160a22f19138b",
-    "reason": "Annotation-display review: feature selection remains based on typed prepared facts, with exact generic mastering labels from classified display fragments. Distributor manual-clear precedence, commentary authority and canonical cut/edition mappings remain unchanged. Unknown words stay canonical edition text; exact payload and feature-category regressions cover interleaving."
+    "sha256": "1458b107daa014f5e71ea473d8e54b7d01642c69114e55b1145acc7233cab8d7",
+    "reason": "PTP Hybrid ordering review: catalogue selections precede the separate typed Hybrid option, restoring existing cut/feature payload order. Distributor/manual provenance, prepared-only feature selection, and opaque manual wording remain unchanged. Exact remaster-title, wire-payload and preview regressions verify the ordering; final manual overrides clear automatic features before this consumer."
   },
   "internal/trackers/impl/standalone/ptp/taxonomy.go:resolveRemasterTitle": {
-    "sha256": "b4259fb9378cb41a0ccc9379616c24016c962b0c702f647ae701a948d54d8f07",
-    "reason": "Annotation-display review: preserves legacy remaster payload spelling/order from the ordered display projection after already-selected catalogue labels are formatted. Display text is used only for rendering, never to select a feature or provider identity. Canonical feature selection and manual/provider precedence remain owned by editionFeatures."
+    "sha256": "0a52594a4722713c1bf718503b28aed50d1e84b5a6b16979262998862de80deb",
+    "reason": "PTP display preservation review: only selected catalogue labels are deduplicated from legacy display wording, retaining existing effective-commentary and solitary-theatrical suppression. Joined display fragments cannot invent 4K feature evidence or erase unselected wording; canonical selections, manual authority and provider guards remain unchanged. Wire/preview regressions cover split mastering labels, selected cross-fragment collection labels and both suppressions."
   },
   "internal/trackers/impl/standalone/ptp/taxonomy.go:resolveTags": {
     "reason": "Explicit manual corrections, including empty values, override this field; automatic provider presence, ordering, and tracker-specific fallback policy remain unchanged.",
