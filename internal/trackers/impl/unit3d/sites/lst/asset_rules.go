@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"html"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -16,13 +15,15 @@ import (
 )
 
 func assetQuestionKey(subject api.TrackerValidationSubject, key string) string {
-	if key == "hybrid_review" {
-		refs := []string{
-			subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_grade")],
-			subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_plot")],
-		}
-		hash, _ := api.CanonicalWorkflowFingerprint(refs)
-		key += "_" + string(hash)
+	if key == "screenshot_preservation" {
+		return trackers.LanguageQuestionKey(subject, key+"_"+string(subject.AssetFacts.ScreenshotFingerprint))
+	}
+	if key == "hybrid_will_add" {
+		// A source-specific promise must survive later screenshot/hosting stages.
+		return trackers.LanguageQuestionKey(
+			subject,
+			fmt.Sprintf("%s_%x", key, sha256.Sum256([]byte(fmt.Sprintf("%#v|%#v", subject.HDRFacts, subject.ReleaseFeatures)))),
+		)
 	}
 	return trackers.LanguageQuestionKey(
 		subject,
@@ -32,7 +33,7 @@ func assetQuestionKey(subject api.TrackerValidationSubject, key string) string {
 
 func hybridAssetsRequired(subject api.TrackerValidationSubject) bool {
 	return slices.Contains(subject.ReleaseFeatures, api.ReleaseFeatureHybrid) &&
-		(subject.HDRFacts.Status != api.HDREvidenceComplete || slices.Contains(subject.HDRFacts.Formats, api.HDRFormatDolbyVision) || slices.Contains(subject.HDRFacts.Formats, api.HDRFormatHDR10Plus))
+		(slices.Contains(subject.HDRFacts.Formats, api.HDRFormatDolbyVision) || slices.Contains(subject.HDRFacts.Formats, api.HDRFormatHDR10Plus))
 }
 
 func assetReviewQuestions(subject api.TrackerValidationSubject) []api.TrackerQuestionnaireField {
@@ -59,42 +60,23 @@ func assetReviewQuestions(subject api.TrackerValidationSubject) []api.TrackerQue
 			},
 		)
 	}
-	if hybridAssetsRequired(subject) {
-		fields = append(
-			fields,
-			api.TrackerQuestionnaireField{
-				Key:      assetQuestionKey(subject, "hybrid_grade"),
-				Label:    "Source-linked grade-check artifact",
-				Kind:     "text",
-				Required: true,
-			},
-			api.TrackerQuestionnaireField{
-				Key:      assetQuestionKey(subject, "hybrid_plot"),
-				Label:    "Source-linked HDR plot artifact",
-				Kind:     "text",
-				Required: true,
-			},
-			api.TrackerQuestionnaireField{
-				Key:      assetQuestionKey(subject, "hybrid_review"),
-				Label:    "Review hybrid evidence",
-				Kind:     "select",
-				Options:  []string{"unresolved", "reviewed_source_match", "source_mismatch"},
-				Required: true,
-				Help:     "Review both artifacts against this exact prepared source, including layer/base alignment. This records your review; it is not an automatic tool-specific grade.",
-			},
-		)
+	if hybridAssetsRequired(subject) && !generatedHybridEvidenceIncluded(subject, subject.DescriptionOverride) {
+		fields = append(fields, api.TrackerQuestionnaireField{
+			Key:                assetQuestionKey(subject, "hybrid_will_add"),
+			Label:              "Include hybrid HDR evidence",
+			Kind:               "select",
+			Options:            []string{"unresolved", "will_add_required_data"},
+			Required:           subject.DescriptionGroupsFinal,
+			HDRGradeComparison: true,
+			Help:               "Confirm that you will add the grade comparison and HDR10+ plot for this source to the description. If upbrr has already generated and included both, no confirmation is needed.",
+		})
 	}
 	for i := range fields {
 		value := strings.TrimSpace(subject.QuestionnaireAnswers[fields[i].Key])
 		fields[i].Value = value
-		fields[i].NeedsReview = value == "" || value == "unresolved" || value == "lossy_or_changed" || value == "source_mismatch"
+		fields[i].NeedsReview = fields[i].Required && (value == "" || value == "unresolved" || value == "lossy_or_changed" || value == "source_mismatch")
 	}
 	return fields
-}
-
-func sourceArtifactURL(value string) bool {
-	parsed, err := url.Parse(strings.TrimSpace(value))
-	return err == nil && parsed.Scheme == "https" && parsed.Host != "" && parsed.User == nil
 }
 
 func assetReviewFailures(subject api.TrackerValidationSubject) []api.RuleFailure {
@@ -116,13 +98,15 @@ func assetReviewFailures(subject api.TrackerValidationSubject) []api.RuleFailure
 		)
 	}
 	for _, field := range assetReviewQuestions(subject) {
+		// Hybrid evidence is enforced against the final payload description, with
+		// a recoverable late question when generated evidence is not included.
+		if field.HDRGradeComparison {
+			continue
+		}
 		value := strings.TrimSpace(subject.QuestionnaireAnswers[field.Key])
 		valid := value != "" && value != "unresolved" && value != "lossy_or_changed" && value != "source_mismatch"
 		if field.Kind == "text" {
 			valid = value != ""
-			if field.Key != assetQuestionKey(subject, "track_notes") {
-				valid = sourceArtifactURL(value)
-			}
 		} else {
 			valid = valid && slices.Contains(field.Options, value)
 		}
@@ -136,6 +120,19 @@ func assetReviewFailures(subject api.TrackerValidationSubject) []api.RuleFailure
 			failure.EvidenceStatus = api.MetadataEvidenceStatusPartial
 		}
 		failures = append(failures, failure)
+	}
+	if !slices.Contains(subject.ReleaseFeatures, api.ReleaseFeatureHybrid) &&
+		slices.Contains(subject.HDRFacts.Formats, api.HDRFormatDolbyVision) &&
+		(slices.Contains(subject.HDRFacts.Formats, api.HDRFormatHDR10) || slices.Contains(subject.HDRFacts.Formats, api.HDRFormatHDR10Plus)) {
+		failures = append(
+			failures,
+			trackers.NewEvidenceRuleFailure(
+				"lst_hybrid_hdr_guidance",
+				"DV+HDR does not establish hybrid provenance. If this release is a hybrid, select Hybrid in Release features and include the required source-linked HDR evidence in its description.",
+				api.RuleDispositionAdvisory,
+				api.MetadataEvidenceStatusPartial,
+			),
+		)
 	}
 	for i := range failures {
 		failures[i].DebugBypass = true
@@ -154,15 +151,6 @@ func requiredAssetDescription(subject api.TrackerValidationSubject) string {
 	}
 	if note := strings.TrimSpace(subject.QuestionnaireAnswers[assetQuestionKey(subject, "track_notes")]); note != "" {
 		lines = append(lines, strings.NewReplacer("[", "&#91;", "]", "&#93;").Replace(html.EscapeString(note)))
-	}
-	if !hybridAssetsRequired(subject) {
-		return strings.Join(lines, "\n")
-	}
-	for _, key := range []string{"hybrid_grade", "hybrid_plot"} {
-		value := strings.TrimSpace(subject.QuestionnaireAnswers[assetQuestionKey(subject, key)])
-		if sourceArtifactURL(value) {
-			lines = append(lines, strings.NewReplacer("[", "&#91;", "]", "&#93;").Replace(html.EscapeString(value)))
-		}
 	}
 	return strings.Join(lines, "\n")
 }

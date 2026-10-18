@@ -242,6 +242,8 @@ type TrackerArtifactRequirements struct {
 
 // TrackerQuestionnaireRequirement describes one non-secret tracker input requirement.
 type TrackerQuestionnaireRequirement struct {
+	// HDRGradeComparison requests conditional guidance beside the HDR analysis controls.
+	HDRGradeComparison bool `json:"hdrGradeComparison,omitempty"`
 	// NeedsReview requests correction without making an optional value mandatory.
 	NeedsReview bool `json:"needsReview,omitempty"`
 	// Kind identifies the renderer; multiselect values use comma-separated option labels.
@@ -460,6 +462,8 @@ type DupeMatchProjection struct {
 
 // TrackerDupeAssessment is one retained projection-bound duplicate result.
 type TrackerDupeAssessment struct {
+	// Questionnaire contains candidate-bound questions from this exact assessment.
+	Questionnaire []TrackerQuestionnaireRequirement `json:"questionnaire,omitempty"`
 	// RequiresStaffToken blocks overrides until the owner explicitly attests possession.
 	RequiresStaffToken bool `json:"requiresStaffToken,omitempty"`
 	// StaffTokenConfirmed retains attestation for this projection; reprojecting clears it.
@@ -648,22 +652,24 @@ type DescriptionTrackerResult struct {
 
 // DescriptionSet retains descriptions for exact release, projection, and media revisions.
 type DescriptionSet struct {
-	ID                  DescriptionSetID               `json:"id"`
-	WorkflowID          WorkflowID                     `json:"workflowId"`
-	Revision            WorkflowRevision               `json:"revision"`
-	Release             ReleaseSnapshotRef             `json:"release"`
-	ReleaseRef          ReleaseRef                     `json:"releaseRef"`
-	ProjectionSet       TrackerReleaseProjectionSetRef `json:"projectionSet"`
-	TrackerApproval     *TrackerApprovalSnapshotRef    `json:"trackerApproval,omitempty"`
-	Media               *MediaArtifactSetRef           `json:"media,omitempty"`
-	InputFingerprint    WorkflowFingerprint            `json:"inputFingerprint"`
-	TemplateFingerprint WorkflowFingerprint            `json:"templateFingerprint"`
-	Descriptions        []RenderedDescription          `json:"descriptions"`
-	TrackerResults      []DescriptionTrackerResult     `json:"trackerResults,omitempty"`
-	Status              StageStatus                    `json:"status"`
-	RequiredActions     []RequiredAction               `json:"requiredActions,omitempty"`
-	Failures            []WorkflowFailure              `json:"failures,omitempty"`
-	CreatedAt           time.Time                      `json:"createdAt" ts_type:"string"`
+	// HDRArtifacts is server-owned evidence from this exact description generation.
+	HDRArtifacts        map[TrackerID][]HDRArtifactEvidence `json:"hdrArtifacts,omitempty"`
+	ID                  DescriptionSetID                    `json:"id"`
+	WorkflowID          WorkflowID                          `json:"workflowId"`
+	Revision            WorkflowRevision                    `json:"revision"`
+	Release             ReleaseSnapshotRef                  `json:"release"`
+	ReleaseRef          ReleaseRef                          `json:"releaseRef"`
+	ProjectionSet       TrackerReleaseProjectionSetRef      `json:"projectionSet"`
+	TrackerApproval     *TrackerApprovalSnapshotRef         `json:"trackerApproval,omitempty"`
+	Media               *MediaArtifactSetRef                `json:"media,omitempty"`
+	InputFingerprint    WorkflowFingerprint                 `json:"inputFingerprint"`
+	TemplateFingerprint WorkflowFingerprint                 `json:"templateFingerprint"`
+	Descriptions        []RenderedDescription               `json:"descriptions"`
+	TrackerResults      []DescriptionTrackerResult          `json:"trackerResults,omitempty"`
+	Status              StageStatus                         `json:"status"`
+	RequiredActions     []RequiredAction                    `json:"requiredActions,omitempty"`
+	Failures            []WorkflowFailure                   `json:"failures,omitempty"`
+	CreatedAt           time.Time                           `json:"createdAt" ts_type:"string"`
 }
 
 // UploadPlanField is one ordered sanitized request field from a retained operation.

@@ -14,6 +14,7 @@ import (
 
 	descriptionunit3d "github.com/autobrr/upbrr/internal/description/unit3d"
 	"github.com/autobrr/upbrr/internal/metadata/discparse"
+	"github.com/autobrr/upbrr/internal/trackers"
 	"github.com/autobrr/upbrr/pkg/api"
 )
 
@@ -30,6 +31,21 @@ func exceptionDescriptionAppendix(note string) string {
 func validateFinalDescription(meta api.UploadSubject, description, mediaInfo, bdInfo string) error {
 	if countPreparedDescriptionImages(meta, description) < 3 {
 		return errors.New("LST: include three distinct prepared screenshots as full images or linked thumbnails in the final description")
+	}
+	subject := api.NewTrackerValidationSubject(meta, "LST")
+	if hybridAssetsRequired(subject) && !generatedHybridEvidenceIncluded(subject, description) &&
+		subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_will_add")] != "will_add_required_data" {
+		subject.DescriptionOverride = description
+		subject.DescriptionGroupsFinal = true
+		var fields []api.TrackerQuestionnaireField
+		for _, field := range assetReviewQuestions(subject) {
+			if field.HDRGradeComparison {
+				fields = append(fields, field)
+			}
+		}
+		return trackers.NewQuestionnairePreparationFailure("LST",
+			"Include the source-linked grade comparison and HDR10+ plot, or confirm that you will add the required data to the description",
+			&api.TrackerQuestionnaire{Fields: fields})
 	}
 	switch strings.ToUpper(strings.TrimSpace(meta.DiscType)) {
 	case "BDMV", "HDDVD":

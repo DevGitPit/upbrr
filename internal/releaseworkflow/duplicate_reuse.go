@@ -216,6 +216,10 @@ func (m *Module) rebindQuestionnaireDupes(
 	if len(snapshot.Results) == 0 {
 		return nil, nil
 	}
+	snapshot, err = m.projectDuplicateQuestionnaires(ctx, state, projections, snapshot)
+	if err != nil {
+		return nil, err
+	}
 	result, err := m.publishBuiltDupes(ownerID, state, nextRevision, now, projections, snapshot, evidence, prior.CheckOrdinal)
 	return result.Dupes, err
 }

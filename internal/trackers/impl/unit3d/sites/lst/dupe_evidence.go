@@ -13,12 +13,13 @@ import (
 )
 
 func duplicateEvidenceKey(subject api.TrackerValidationSubject, key string) string {
-	var dependencies []string
+	dependencies := make([]string, 0, 17)
 	if key == "source_reviewed" {
-		dependencies = []string{"source", "internal_status", "back_catalogue", "layer_source", "disc_identity", "disc_form"}
+		dependencies = append(dependencies, "source", "internal_status", "back_catalogue", "layer_source", "disc_identity", "disc_form")
 	} else if strings.HasPrefix(key, "candidate_") && strings.HasSuffix(key, "_comparison_reviewed") {
 		prefix := strings.TrimSuffix(key, "comparison_reviewed")
-		for _, suffix := range []string{"candidate_fingerprint", "comparison_source", "candidate_internal_status", "candidate_group", "candidate_layer_source", "candidate_disc_identity", "candidate_disc_form", "quality", "visual_improvement", "meaningful_benefit", "defect_improved", "replacement"} {
+		dependencies = append(dependencies, "source", "internal_status", "back_catalogue", "layer_source", "disc_identity", "disc_form")
+		for _, suffix := range []string{"comparison_source", "candidate_internal_status", "candidate_group", "candidate_layer_source", "candidate_disc_identity", "candidate_disc_form", "quality", "visual_improvement", "meaningful_benefit", "defect_improved", "replacement"} {
 			dependencies = append(dependencies, prefix+suffix)
 		}
 	}
@@ -54,16 +55,16 @@ func duplicateEvidence(meta api.UploadSubject) (api.DupeReleaseEvidence, []api.D
 	if evidence.InternalStatus == "internal" && evidence.Group == "" {
 		evidence.InternalStatus = ""
 	}
-	candidateIDs := duplicateCandidateIDs(answer("candidate_ids"))
+	candidates := meta.TrackerDuplicateReviewCandidates["LST"]
 	var comparisons []api.DupeComparisonEvidence
-	if len(candidateIDs) > 0 {
-		comparisons = make([]api.DupeComparisonEvidence, 0, len(candidateIDs))
+	if len(candidates) > 0 {
+		comparisons = make([]api.DupeComparisonEvidence, 0, len(candidates))
 	}
-	for _, candidateID := range candidateIDs {
-		candidateAnswer := func(key string) string { return answer("candidate_" + candidateID + "_" + key) }
+	for _, candidate := range candidates {
+		candidateAnswer := func(key string) string { return answer(duplicateCandidatePrefix(candidate) + key) }
 		comparison := api.DupeComparisonEvidence{
-			CandidateID:          candidateID,
-			CandidateFingerprint: api.WorkflowFingerprint(candidateAnswer("candidate_fingerprint")),
+			CandidateID:          candidate.ID,
+			CandidateFingerprint: candidate.EvidenceFingerprint,
 			Candidate: api.DupeReleaseEvidence{
 				InternalStatus: candidateAnswer("candidate_internal_status"),
 				Group:          candidateAnswer("candidate_group"),
@@ -97,6 +98,10 @@ func duplicateEvidenceLink(value string) bool {
 }
 
 func duplicateEvidenceQuestionnaire(input trackers.PreparationInput) []api.TrackerQuestionnaireField {
+	candidates := duplicateReviewCandidates(input.Meta)
+	if len(candidates) == 0 {
+		return nil
+	}
 	subject := api.NewTrackerValidationSubject(input.Meta, "LST")
 	fields := []api.TrackerQuestionnaireField{
 		{
@@ -151,22 +156,10 @@ func duplicateEvidenceQuestionnaire(input trackers.PreparationInput) []api.Track
 			},
 		)
 	}
-	fields = append(fields, api.TrackerQuestionnaireField{
-		Key:   "candidate_ids",
-		Label: "Candidate IDs to compare (comma-separated)",
-		Kind:  "text",
-		Help:  "Use IDs and evidence fingerprints from duplicate review. Each candidate requires its own reviewed comparison.",
-	})
-	for _, candidateID := range duplicateCandidateIDs(subject.QuestionnaireAnswers[duplicateEvidenceKey(subject, "candidate_ids")]) {
+	for _, candidate := range candidates {
 		start := len(fields)
-
 		fields = append(
 			fields,
-			api.TrackerQuestionnaireField{
-				Key:   "candidate_fingerprint",
-				Label: "Candidate evidence fingerprint",
-				Kind:  "text",
-			},
 			api.TrackerQuestionnaireField{
 				Key:   "comparison_source",
 				Label: "Source-linked comparison artifact",
@@ -248,9 +241,18 @@ func duplicateEvidenceQuestionnaire(input trackers.PreparationInput) []api.Track
 				},
 			)
 		}
+		fields = append(fields[:start], slices.DeleteFunc(fields[start:], func(field api.TrackerQuestionnaireField) bool {
+			switch field.Key {
+			case "visual_improvement":
+				return !strings.Contains(candidate.Reason, "webrip")
+			case "meaningful_benefit", "defect_improved", "replacement":
+				return !strings.Contains(candidate.Reason, "internal") && !strings.Contains(candidate.Reason, "back_catalogue")
+			}
+			return false
+		})...)
 		for index := start; index < len(fields); index++ {
-			fields[index].Key = "candidate_" + candidateID + "_" + fields[index].Key
-			fields[index].Label = "Candidate " + candidateID + ": " + fields[index].Label
+			fields[index].Key = duplicateCandidatePrefix(candidate) + fields[index].Key
+			fields[index].Label = "Candidate " + candidate.Name + ": " + fields[index].Label
 		}
 	}
 	for i := range fields {
@@ -426,13 +428,22 @@ func hybridHDRSlot(target, candidate api.TrackerDuplicateTarget) bool {
 	return true
 }
 
-func duplicateCandidateIDs(value string) []string {
-	var result []string
-	for _, value := range strings.Split(value, ",") {
-		value = strings.TrimSpace(value)
-		if value != "" && !slices.Contains(result, value) {
-			result = append(result, value)
+// duplicateReviewCandidates excludes exact identities, established coexistence and unrelated findings.
+func duplicateReviewCandidates(meta api.UploadSubject) []api.DupeMatchProjection {
+	var result []api.DupeMatchProjection
+	for _, candidate := range meta.TrackerDuplicateReviewCandidates["LST"] {
+		if candidate.ID == "" || candidate.EvidenceFingerprint == "" || candidate.Relation == api.DupeRelationExactDuplicate ||
+			candidate.Relation == api.DupeRelationCoexists || candidate.Relation == api.DupeRelationProposedTrumps || candidate.Reason == "in_client" ||
+			(!strings.HasPrefix(candidate.Reason, "lst_") && candidate.Relation != api.DupeRelationSameSlot && !candidate.Internal) {
+			continue
 		}
+		result = append(result, candidate)
 	}
 	return result
+}
+
+// The key carries opaque candidate binding; users answer facts rather than copying identifiers.
+func duplicateCandidatePrefix(candidate api.DupeMatchProjection) string {
+	binding, _ := api.CanonicalWorkflowFingerprint([]string{candidate.ID, string(candidate.EvidenceFingerprint)})
+	return "candidate_" + string(binding) + "_"
 }

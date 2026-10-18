@@ -1530,6 +1530,15 @@
               "$ref": "#/components/schemas/WorkflowFailure"
             }
           },
+          "hdrArtifacts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HDRArtifactEvidence"
+              }
+            }
+          },
           "id": {
             "$ref": "#/components/schemas/DescriptionSetID"
           },
@@ -2746,6 +2755,45 @@
           "label",
           "scenes",
           "status",
+          "targetId"
+        ]
+      },
+      "HDRArtifactEvidence": {
+        "type": "object",
+        "properties": {
+          "analysis": {
+            "$ref": "#/components/schemas/HDRAnalysisRef"
+          },
+          "artifactId": {
+            "$ref": "#/components/schemas/PublicResourceID"
+          },
+          "generationComplete": {
+            "type": "boolean"
+          },
+          "imageUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "$ref": "#/components/schemas/HDRArtifactKind"
+          },
+          "measurementFingerprint": {
+            "type": "string"
+          },
+          "renderFingerprint": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis",
+          "artifactId",
+          "generationComplete",
+          "kind",
           "targetId"
         ]
       },
@@ -11046,6 +11094,12 @@
           "projectionFingerprint": {
             "$ref": "#/components/schemas/WorkflowFingerprint"
           },
+          "questionnaire": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerQuestionnaireRequirement"
+            }
+          },
           "requiredActions": {
             "type": "array",
             "items": {
@@ -11723,6 +11777,9 @@
       "TrackerQuestionnaireField": {
         "type": "object",
         "properties": {
+          "HDRGradeComparison": {
+            "type": "boolean"
+          },
           "Help": {
             "type": "string"
           },
@@ -11768,6 +11825,9 @@
       "TrackerQuestionnaireRequirement": {
         "type": "object",
         "properties": {
+          "hdrGradeComparison": {
+            "type": "boolean"
+          },
           "help": {
             "type": "string"
           },

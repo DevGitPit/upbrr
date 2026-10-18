@@ -25,6 +25,7 @@ import DescriptionBuilderPage from "../pages/description_builder";
 import ScreenshotsPage from "../pages/screenshots";
 import DupeCheckPage from "../pages/dupe_check";
 import TrackerUploadPage from "../pages/tracker_upload";
+import HDRAnalysisPage from "../pages/hdr_analysis";
 import type { ReleaseSessionPorts } from "./ports";
 import { setAppRequestHandlerForTests } from "../api/client";
 import { productionReleaseSessionPorts } from "./production";
@@ -831,6 +832,17 @@ const QuestionnaireSurface = () => {
       trackerIconSrcByName={{}}
       submissionExclusions={[]}
       workflowComplete={false}
+    />
+  );
+};
+
+const HDRSurface = () => {
+  const session = useReleaseSession();
+  return (
+    <HDRAnalysisPage
+      facet={session.hdrAnalysis}
+      setLightboxImage={vi.fn()}
+      setLightboxAlt={vi.fn()}
     />
   );
 };
@@ -5699,6 +5711,170 @@ describe("useReleaseSession", () => {
 
   describe("early questionnaire projection", () => {
     afterEach(cleanup);
+    it("loads HDR guidance on fresh page entry without starting preflight or duplicate searches", async () => {
+      const workflowID = "fresh-hdr-guidance";
+      const initial = preparedQuestionnaireWorkflow(workflowID);
+      const prepared: ReleaseWorkflowCurrent = {
+        ...initial,
+        inputReadiness: { ...initial.inputReadiness!, selectedTrackerIds: ["LST"] },
+        release: {
+          ...initial.release!,
+          display: {
+            ...initial.release!.display,
+            hdrTargets: [
+              { id: "hdr-target", label: "Video", supported: true, selectionPolicy: "unique_hevc" },
+            ],
+          },
+        },
+      };
+      const active = workflowPorts();
+      const projected = await active.project(
+        prepared,
+        ["LST"],
+        {},
+        "seed",
+        new AbortController().signal,
+      );
+      const pending = createDeferred<ReleaseWorkflowCurrent>();
+      const project = vi.fn(async () => pending.promise);
+      const preflight = vi.fn(active.preflight);
+      const checkDuplicates = vi.fn(active.checkDuplicates);
+      const workflow = workflowPorts({
+        current: async () => prepared,
+        project,
+        preflight,
+        checkDuplicates,
+      });
+      const { result } = renderHook(useReleaseSession, {
+        wrapper: ({ children }) => (
+          <ReleaseSessionProvider ports={portsFor({ resumeWorkflowID: workflowID, workflow })}>
+            <HDRSurface />
+            {children}
+          </ReleaseSessionProvider>
+        ),
+      });
+      await waitFor(() => expect(project).toHaveBeenCalledOnce());
+      expect(result.current.hdrAnalysis.view.requirementsNeedRefresh).toBe(false);
+      expect(screen.queryByRole("region", { name: "Required hybrid HDR evidence" })).toBeNull();
+      await act(async () =>
+        pending.resolve({
+          ...projected,
+          projections: {
+            ...projected.projections!,
+            projections: projected.projections!.projections.map((projection) => ({
+              ...projection,
+              questionnaire: [
+                {
+                  key: "hybrid_evidence",
+                  label: "Evidence",
+                  required: false,
+                  hdrGradeComparison: true,
+                },
+              ],
+            })),
+          },
+        }),
+      );
+      expect(screen.getByRole("region", { name: "Required hybrid HDR evidence" })).toBeVisible();
+      expect(result.current.hdrAnalysis.view.requirementsNeedRefresh).toBe(false);
+      expect(project).toHaveBeenCalledOnce();
+      await act(() => result.current.hdrAnalysis.setIncludedArtifacts(["grade", "plot"]));
+      expect(project).toHaveBeenCalledOnce();
+      expect(preflight).not.toHaveBeenCalled();
+      expect(checkDuplicates).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false, undefined])(
+      "retains current backend HDR guidance without reprojecting descriptions and clears it on deselection (%s)",
+      async (hdrGradeComparison) => {
+        const workflowID = "hdr-grade-guidance";
+        const initial = preparedQuestionnaireWorkflow(workflowID);
+        const prepared = {
+          ...initial,
+          release: {
+            ...initial.release!,
+            display: {
+              ...initial.release!.display,
+              hdrTargets: [
+                {
+                  id: "hdr-target",
+                  label: "Video",
+                  supported: true,
+                  selectionPolicy: "unique_hevc",
+                },
+              ],
+            },
+          },
+          inputReadiness: {
+            ...initial.inputReadiness!,
+            selectedTrackerIds: ["LST"],
+          },
+        };
+        const projected = await workflowPorts().project(
+          prepared,
+          ["LST"],
+          {},
+          "seed",
+          new AbortController().signal,
+        );
+        const current: ReleaseWorkflowCurrent = {
+          ...projected,
+          descriptions: workflowCurrentWithDescriptions(workflowID, 3, "Retained description")
+            .descriptions,
+          media: {
+            id: "retained-media",
+            revision: 1,
+            workflowId: workflowID,
+            release: { id: projected.release!.id, revision: projected.release!.revision },
+            releaseRef: { SourcePath: initial.release!.release.Source.SourcePath, Generation: 1 },
+            projectionSet: {
+              id: projected.projections!.id,
+              revision: projected.projections!.revision,
+            },
+            captureFingerprint: "capture",
+            requirementsFingerprint: "requirements",
+            imageRequirementsPrepared: true,
+            artifacts: [],
+            status: "completed",
+            createdAt: "2026-10-18T00:00:00Z",
+          },
+          projections: {
+            ...projected.projections!,
+            projections: projected.projections!.projections.map((projection) => ({
+              ...projection,
+              displayName: "LST",
+              questionnaire: [
+                { key: "hybrid_evidence", label: "Evidence", required: true, hdrGradeComparison },
+              ],
+            })),
+          },
+        };
+        const project = vi.fn(async () => current);
+        const workflow = workflowPorts({ current: async () => current, project });
+        const { result } = renderHook(useReleaseSession, {
+          wrapper: ({ children }) => (
+            <ReleaseSessionProvider ports={portsFor({ resumeWorkflowID: workflowID, workflow })}>
+              <HDRSurface />
+              {children}
+            </ReleaseSessionProvider>
+          ),
+        });
+        await waitFor(() =>
+          expect(result.current.duplicates.view.selectedTrackers).toEqual(["LST"]),
+        );
+        expect(result.current.hdrAnalysis.view.gradeComparisonTrackers).toEqual(
+          hdrGradeComparison ? ["LST"] : [],
+        );
+        expect(result.current.hdrAnalysis.view.available).toBe(true);
+        expect(result.current.hdrAnalysis.view.requirementsNeedRefresh).toBe(false);
+        expect(project).not.toHaveBeenCalled();
+        expect(result.current.descriptions.view.artifact).toEqual(current.descriptions);
+        expect(result.current.screenshots.view.artifacts).toEqual(current.media);
+        act(() => result.current.duplicates.chooseTrackers([]));
+        expect(result.current.hdrAnalysis.view.gradeComparisonTrackers).toEqual([]);
+      },
+    );
+
     it("projects default tracker questions on opening Dupe Checking without preflight or duplicate calls", async () => {
       const active = workflowPorts();
       const prepared = preparedQuestionnaireWorkflow("early-questions");

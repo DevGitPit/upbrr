@@ -45,7 +45,7 @@ func TestPresentationReviewPriorityAndGeneration(t *testing.T) {
 			t.Fatal("reviewed references missing from final appendix")
 		}
 		subject.Identity.Generation++
-		if len(presentationReviewFailures(subject)) == 0 {
+		if personal && len(presentationReviewFailures(subject)) == 0 {
 			t.Fatal("stale review reused")
 		}
 	}

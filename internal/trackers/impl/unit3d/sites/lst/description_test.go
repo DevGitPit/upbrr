@@ -49,7 +49,6 @@ func lstDescriptionScreenshots(meta *api.UploadSubject) string {
 		meta.TrackerQuestionnaireAnswers["LST"][field.Key] = value
 	}
 	subject = api.NewTrackerValidationSubject(*meta, "LST")
-	meta.TrackerQuestionnaireAnswers["LST"][assetQuestionKey(subject, "hybrid_review")] = "reviewed_source_match"
 	for _, field := range sourceReviewQuestions(subject) {
 		meta.TrackerQuestionnaireAnswers["LST"][field.Key] = field.Options[1]
 	}

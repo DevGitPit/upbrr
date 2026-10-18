@@ -48,20 +48,18 @@ func TestSingleFileValidationRetainsInspectedFields(t *testing.T) {
 	}
 }
 
-func TestHybridConfirmationInvalidatesWhenArtifactsChange(t *testing.T) {
+func TestHybridConfirmationInvalidatesWhenSourceChanges(t *testing.T) {
 	subject := lstValidationSubject()
 	subject.ReleaseFeatures = []api.ReleaseFeature{api.ReleaseFeatureHybrid}
 	subject.HDRFacts = api.HDRFacts{Status: api.HDREvidenceComplete, Formats: []api.HDRFormat{api.HDRFormatDolbyVision}}
 	subject.QuestionnaireAnswers[assetQuestionKey(subject, "screenshot_preservation")] = "lossless_preserved"
-	subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_grade")] = "https://example.test/grade-a"
-	subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_plot")] = "https://example.test/plot"
-	subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_review")] = "reviewed_source_match"
+	subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_will_add")] = "will_add_required_data"
 	if failures := assetReviewFailures(subject); len(failures) != 0 {
 		t.Fatalf("current artifact review: %+v", failures)
 	}
-	subject.QuestionnaireAnswers[assetQuestionKey(subject, "hybrid_grade")] = "https://example.test/grade-b"
+	subject.Identity.Generation++
 	if failures := assetReviewFailures(subject); len(failures) == 0 {
-		t.Fatal("changed artifact retained review")
+		t.Fatal("changed source retained confirmation")
 	}
 }
 
@@ -127,16 +125,23 @@ func TestDuplicateConfirmationsBindReferencedEvidence(t *testing.T) {
 	if evidence, _ := duplicateEvidence(meta); evidence.InternalStatus != "" {
 		t.Fatal("changed source retained internal authority")
 	}
-	set("candidate_ids", "123")
-	set("candidate_123_candidate_fingerprint", "current-a")
-	set("candidate_123_comparison_source", "https://example.test/comparison")
-	set("candidate_123_quality", "superior")
-	set("candidate_123_comparison_reviewed", "yes")
+	candidate := api.DupeMatchProjection{
+		ID:                  "123",
+		Name:                "Existing release",
+		EvidenceFingerprint: "current-a",
+		Relation:            api.DupeRelationManualReview,
+		Reason:              "lst_internal_comparison_required",
+	}
+	meta.TrackerDuplicateReviewCandidates = map[string][]api.DupeMatchProjection{"LST": {candidate}}
+	prefix := duplicateCandidatePrefix(candidate)
+	set(prefix+"comparison_source", "https://example.test/comparison")
+	set(prefix+"quality", "superior")
+	set(prefix+"comparison_reviewed", "yes")
 	if _, proofs := duplicateEvidence(meta); len(proofs) != 1 || !proofs[0].Reviewed {
 		t.Fatal("current comparison review missing")
 	}
-	for _, field := range []string{"candidate_fingerprint", "quality", "comparison_source"} {
-		set("candidate_123_"+field, "changed")
+	for _, field := range []string{"quality", "comparison_source"} {
+		set(prefix+field, "changed")
 		if _, proofs := duplicateEvidence(meta); len(proofs) != 1 || proofs[0].Reviewed {
 			t.Fatalf("changed %s retained comparison authority", field)
 		}

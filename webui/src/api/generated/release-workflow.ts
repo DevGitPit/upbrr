@@ -375,6 +375,7 @@ export type DescriptionSet = Readonly<{
   createdAt: string;
   descriptions: readonly RenderedDescription[];
   failures?: readonly WorkflowFailure[];
+  hdrArtifacts?: Readonly<Record<string, readonly HDRArtifactEvidence[]>>;
   id: DescriptionSetID;
   inputFingerprint: WorkflowFingerprint;
   media?: MediaArtifactSetRef | null;
@@ -716,6 +717,17 @@ export type HDRAnalysisTargetResult = Readonly<{
   profile?: string;
   scenes: number;
   status: StageStatus;
+  targetId: string;
+}>;
+
+export type HDRArtifactEvidence = Readonly<{
+  analysis: HDRAnalysisRef;
+  artifactId: PublicResourceID;
+  generationComplete: boolean;
+  imageUrls?: readonly string[];
+  kind: HDRArtifactKind;
+  measurementFingerprint?: string;
+  renderFingerprint?: string;
   targetId: string;
 }>;
 
@@ -2680,6 +2692,7 @@ export type TrackerDupeAssessment = Readonly<{
   policyFingerprint: WorkflowFingerprint;
   policyId: string;
   projectionFingerprint: WorkflowFingerprint;
+  questionnaire?: readonly TrackerQuestionnaireRequirement[];
   requiredActions?: readonly RequiredAction[];
   requiresStaffToken?: boolean;
   reviewReasons?: readonly DupeReason[];
@@ -2864,6 +2877,7 @@ export type TrackerQuestionnaire = Readonly<{
 }>;
 
 export type TrackerQuestionnaireField = Readonly<{
+  HDRGradeComparison?: boolean;
   Help: string;
   Key: string;
   Kind: string;
@@ -2876,6 +2890,7 @@ export type TrackerQuestionnaireField = Readonly<{
 }>;
 
 export type TrackerQuestionnaireRequirement = Readonly<{
+  hdrGradeComparison?: boolean;
   help?: string;
   key: string;
   kind?: string;

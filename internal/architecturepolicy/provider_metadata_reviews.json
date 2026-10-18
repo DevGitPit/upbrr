@@ -1417,7 +1417,7 @@
   },
   "internal/trackers/impl/unit3d/sites/lst/questionnaire.go:languageQuestionnaire": {
     "reason": "Preserves finalized canonical and effective provider facts and current scoped review answers through questionnaire, validation and submission finalization.",
-    "sha256": "28c8db0bec084e08b58733b83261f7652e4005138078c8c056a920c8385e4bc7"
+    "sha256": "91ffd2c857bf07b8eb48cb5574c1db6e95a41636fb9c15163e0bbe2c83d216c1"
   },
   "internal/trackers/impl/unit3d/sites/lst/source_validation.go:endedLSTSeries": {
     "reason": "Uses finalized canonical facts and current scoped review answers; provider series status is consumed only after source and identity validation, with no manual series-status field to override.",

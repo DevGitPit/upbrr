@@ -27,7 +27,7 @@ func TestCLICompositeDupeEvidenceIncludesBackendWarning(t *testing.T) {
 		Relation:            api.DupeRelationManualReview,
 		Reasons:             []api.DupeReason{{Code: "pack_audio_languages_unverified", Message: warning}},
 	}})
-	if !strings.Contains(output.String(), warning) || !strings.Contains(output.String(), "manual_review") || !strings.Contains(output.String(), "Candidate ID: 123; evidence fingerprint: comparison-fingerprint") {
+	if !strings.Contains(output.String(), warning) || !strings.Contains(output.String(), "manual_review") || !strings.Contains(output.String(), "Candidate ID: 123") || strings.Contains(output.String(), "comparison-fingerprint") {
 		t.Fatalf("CLI hid the waiver warning: %s", output.String())
 	}
 }
@@ -1152,5 +1152,56 @@ func TestCLICompositeStaffTokenConfirmation(t *testing.T) {
 		if !strings.Contains(output.String(), "appropriate staff-issued EXAMPLE token") {
 			t.Fatal("missing explicit token prompt")
 		}
+	}
+}
+
+func TestCLICompositeDuplicateComparisonIsOptional(t *testing.T) {
+	for _, test := range []struct {
+		name, input string
+		compare     bool
+	}{
+		{"keep duplicate decision", "n\nn\n", false},
+		{"review evidence", "y\nreviewed\n", true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			session := &cliWorkflowSession{
+				streams:       cliIO{out: io.Discard},
+				intent:        cliWorkflowIntent{interaction: api.InteractionModeUnattendedConfirm},
+				uploadRequest: api.Request{Trackers: []string{"LST"}},
+				current: releaseworkflow.CommandResult{
+					Workflow: api.ReleaseWorkflow{ID: "workflow"},
+					Projections: &api.TrackerReleaseProjectionSet{
+						ID:          "projection",
+						Revision:    1,
+						Projections: []api.TrackerReleaseProjection{{TrackerID: "LST"}},
+					},
+					Dupes: &api.DupeAssessment{
+						WorkflowID:    "workflow",
+						ProjectionSet: api.TrackerReleaseProjectionSetRef{ID: "projection", Revision: 1},
+						Results: []api.TrackerDupeAssessment{{
+							TrackerID: "LST",
+							Decision:  api.DupeDecisionPending,
+							Questionnaire: []api.TrackerQuestionnaireRequirement{{
+								Key:     "candidate-bound",
+								Kind:    "select",
+								Label:   "Comparison",
+								Options: []string{"unknown", "reviewed"},
+							}},
+						}},
+					},
+				},
+			}
+			feedback, declined, err := session.collectCompositeDuplicateFeedback(bufio.NewReader(strings.NewReader(test.input)), api.RequiredAction{Kind: api.RequiredActionReviewDuplicates, TrackerID: "LST"}, api.ReleaseWorkflowUploadFeedback{})
+			if err != nil || declined {
+				t.Fatalf("feedback=%+v declined=%t error=%v", feedback, declined, err)
+			}
+			if test.compare {
+				if feedback.Response.Questionnaire == nil || *feedback.Response.Questionnaire.Answers["candidate-bound"] != "reviewed" || feedback.Response.DuplicateReview != nil {
+					t.Fatalf("comparison became duplicate approval: %+v", feedback)
+				}
+			} else if feedback.Response.DuplicateReview == nil || feedback.Response.DuplicateReview.Decision != api.DupeDecisionAccepted || feedback.Response.Questionnaire != nil {
+				t.Fatalf("ordinary duplicate decision changed: %+v", feedback)
+			}
+		})
 	}
 }

@@ -73,7 +73,6 @@ func languageQuestionnaire(input trackers.PreparationInput) *api.TrackerQuestion
 	fields = append(fields, assetReviewQuestions(subject)...)
 	fields = append(fields, sourceReviewQuestions(subject)...)
 	fields = append(fields, discReviewQuestions(subject)...)
-	fields = append(fields, duplicateEvidenceQuestionnaire(input)...)
 	for i := range fields {
 		if value := subject.QuestionnaireAnswers[fields[i].Key]; fields[i].Kind == "text" || slices.Contains(fields[i].Options, value) {
 			fields[i].Value = value

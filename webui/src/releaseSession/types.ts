@@ -513,6 +513,10 @@ export type HDRAnalysisFacet = Readonly<{
     pendingRequest: HDRAnalysisInstructions | null;
     /** Generation-bound source B handle; its host path stays private to the backend. */
     comparison: HDRComparisonSourceRef | null;
+    /** Selected trackers whose current backend requirements request grade-comparison guidance. */
+    gradeComparisonTrackers?: readonly string[];
+    /** True only when an idle selected-tracker snapshot needs backend projection. */
+    requirementsNeedRefresh: boolean;
     /** Selected description images only; structural JSON reports are excluded. */
     includedArtifactIDs: readonly string[];
     selectionRecoveryNote?: string;
@@ -524,6 +528,8 @@ export type HDRAnalysisFacet = Readonly<{
   }>;
   /** Starts analysis under the current workflow revision and prepared generation. */
   generate(input: HDRAnalysisGenerateInput): Promise<boolean>;
+  /** Refreshes tracker-owned analysis guidance without running duplicate searches. */
+  refreshRequirements(): Promise<boolean>;
   /** Selects a backend-local comparison file without replacing the primary input. */
   selectComparison(sourcePath: string): Promise<boolean>;
   /** Retries unsuccessful modes from the current attempt; a pending request must be resumed first. */

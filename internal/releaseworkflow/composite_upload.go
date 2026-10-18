@@ -2095,7 +2095,7 @@ func (m *Module) SubmitUploadFeedback(
 	if action.ExpiresAt != nil && !action.ExpiresAt.After(m.clock.Now().UTC()) {
 		return CommandResult{}, fmt.Errorf("%w: upload feedback action expired", ErrRevisionConflict)
 	}
-	if action.Kind != compositeUploadFeedbackActionKind(feedback.Response.Kind) {
+	if action.Kind != compositeUploadFeedbackActionKind(feedback.Response.Kind) && !duplicateQuestionnaireFeedbackAllowed(current, action, response) {
 		return CommandResult{}, fmt.Errorf("%w: upload feedback kind does not match action", ErrInvalidTransition)
 	}
 	if err := validateCompositeFeedbackAction(action, response); err != nil {
@@ -2407,6 +2407,10 @@ func (m *Module) applyCompositeUploadFeedback(
 		// acknowledgements. Its duplicate and upload authority is invalidated.
 		projections := state.Projections[state.Workflow.TrackerProjections.ID]
 		state.PendingDuplicateReuse = nil
+		if action.Kind == api.RequiredActionReviewDuplicates && command.Response.Kind == api.ReleaseWorkflowUploadFeedbackQuestionnaire &&
+			state.Workflow.Dupes != nil {
+			state.PendingDuplicateReuse = &PendingDuplicateReuse{Assessment: *state.Workflow.Dupes, QuestionnaireOnly: true}
+		}
 		state.Composite.Intent.StaffTokenConfirmations = nil
 		state.Composite.Intent.DuplicateDecisions = make(map[api.TrackerID]api.DupeDecision, len(state.Composite.DuplicateAllowUpload))
 		for _, trackerID := range state.Composite.DuplicateAllowUpload {

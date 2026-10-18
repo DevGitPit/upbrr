@@ -17,23 +17,19 @@ func TestSourceBoundAssetReview(t *testing.T) {
 	s.HDRFacts = api.HDRFacts{Formats: []api.HDRFormat{api.HDRFormatDolbyVision}, Status: api.HDREvidenceComplete}
 	s.QuestionnaireAnswers = map[string]string{}
 	for _, field := range assetReviewQuestions(s) {
-		value := "https://example.invalid/artifact"
-		if field.Kind == "select" {
-			value = "reviewed_source_match"
-			if strings.Contains(field.Key, "screenshot_preservation") {
-				value = "lossless_preserved"
-			}
+		value := "will_add_required_data"
+		if strings.Contains(field.Key, "screenshot_preservation") {
+			value = "lossless_preserved"
 		}
 		s.QuestionnaireAnswers[field.Key] = value
 	}
-	s.QuestionnaireAnswers[assetQuestionKey(s, "hybrid_review")] = "reviewed_source_match"
 	if failures := assetReviewFailures(s); len(failures) != 0 {
-		t.Fatalf("reviewed assets: %+v", failures)
+		t.Fatalf("confirmed assets: %+v", failures)
 	}
-	if description := requiredAssetDescription(s); !strings.Contains(description, "example.invalid") {
-		t.Fatalf("missing artifacts: %s", description)
+	if description := requiredAssetDescription(s); strings.Contains(description, "hybrid") {
+		t.Fatalf("promise fabricated artifact evidence: %s", description)
 	}
-	s.PreparedResourceFingerprint = "changed"
+	s.Identity.Generation++
 	if failures := assetReviewFailures(s); len(failures) == 0 {
 		t.Fatal("stale asset review reused")
 	}

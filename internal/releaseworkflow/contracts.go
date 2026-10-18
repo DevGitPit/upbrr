@@ -231,6 +231,11 @@ type TrackerProjectionBuilder interface {
 	)
 }
 
+// DuplicateQuestionnaireProjector exposes tracker-owned comparison questions after a real search.
+type DuplicateQuestionnaireProjector interface {
+	DuplicateQuestionnaires(api.UploadSubject, api.TrackerReleaseProjectionSet, api.DupeAssessment) api.DupeAssessment
+}
+
 // InputReadinessEvaluator evaluates selected tracker input demands without
 // authentication, duplicate checks, or other remote work.
 type InputReadinessEvaluator interface {
@@ -334,6 +339,8 @@ type RetainedAudioAnalysisLocalPath interface {
 // DescriptionResources carries the current owner-scoped analysis alongside
 // retained media. HDR authority is resolved only for descriptions using automatic assets.
 type DescriptionResources struct {
+	// HDRArtifacts preserves validated current image associations for final editor overrides.
+	HDRArtifacts  map[api.TrackerID][]api.HDRArtifactEvidence
 	HDR           func(context.Context) (api.HDRAnalysisResult, RetainedHDRAnalysisResource, error)
 	Media         any
 	AudioAnalysis api.AudioAnalysisResult

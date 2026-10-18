@@ -306,6 +306,12 @@ func (b workflowUploadPlanBuilder) Build(
 		}
 	}
 	subject.ExactMedia = exactMedia
+	subject.TrackerHDRArtifacts = make(map[string][]api.HDRArtifactEvidence, len(eligible))
+	for _, projection := range eligible {
+		tracker := string(projection.TrackerID)
+		retained := api.UploadSubject{TrackerHDRArtifacts: map[string][]api.HDRArtifactEvidence{tracker: descriptions.HDRArtifacts[projection.TrackerID]}}
+		subject.TrackerHDRArtifacts[tracker] = retained.HDRArtifactEvidence(tracker)
+	}
 	subject.ImageHostOverrides.FailedHosts = slices.Concat(subject.ImageHostOverrides.FailedHosts, media.FailedHosts)
 	skipImageUpload := true
 	subject.ImageHostOverrides.SkipUpload = &skipImageUpload

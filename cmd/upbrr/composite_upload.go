@@ -552,6 +552,24 @@ func cliTrackerQuestionnaireProjection(current releaseworkflow.CommandResult, tr
 	selected := *current.Projections
 	projection := current.Projections.Projections[index]
 	projection.Questionnaire = slices.Clone(projection.Questionnaire)
+	if dupes := current.Dupes; dupes != nil && dupes.WorkflowID == current.Workflow.ID && dupes.ProjectionSet.ID == selected.ID &&
+		dupes.ProjectionSet.Revision == selected.Revision {
+		for _, result := range dupes.Results {
+			if result.TrackerID == trackerID {
+				for _, field := range result.Questionnaire {
+					fieldIndex := slices.IndexFunc(
+						projection.Questionnaire,
+						func(existing api.TrackerQuestionnaireRequirement) bool { return existing.Key == field.Key },
+					)
+					if fieldIndex < 0 {
+						projection.Questionnaire = append(projection.Questionnaire, field)
+					} else {
+						projection.Questionnaire[fieldIndex] = field
+					}
+				}
+			}
+		}
+	}
 	if report := current.DryRun; report != nil && report.WorkflowID == current.Workflow.ID && report.ProjectionSet.ID == selected.ID &&
 		report.ProjectionSet.Revision == selected.Revision {
 		for _, tracker := range report.Reports {
@@ -692,6 +710,37 @@ func (s *cliWorkflowSession) collectCompositeDuplicateFeedback(
 	if writer, ok := s.streams.out.(*cliPresentationWriter); ok {
 		writer.question.Evidence = safeTerminalText(evidence.String())
 	}
+	if len(result.Questionnaire) > 0 && s.intent.interaction != api.InteractionModeUnattended {
+		review, reviewErr := promptYesNo(reader, s.streams.out, "Review comparison evidence before deciding? [y/N]: ", false)
+		if reviewErr != nil {
+			return feedback, false, reviewErr
+		}
+		if review {
+			projections := cliTrackerQuestionnaireProjection(s.current, action.TrackerID)
+			if projections == nil {
+				return feedback, false, errors.New("upbrr: comparison questionnaire projection is unavailable")
+			}
+			// The operator opted into these optional fields; other tracker inputs keep their normal prompt policy.
+			for index := range projections.Projections[0].Questionnaire {
+				field := &projections.Projections[0].Questionnaire[index]
+				if slices.ContainsFunc(result.Questionnaire, func(question api.TrackerQuestionnaireRequirement) bool { return question.Key == field.Key }) {
+					field.NeedsReview = true
+				}
+			}
+			instructions := cliProjectionInstructions(s.uploadRequest)
+			if _, collectErr := collectCLIWorkflowQuestionnaires(reader, s.streams.out, s.intent.interaction, projections, instructions); collectErr != nil {
+				return feedback, false, collectErr
+			}
+			feedback.Response = api.ReleaseWorkflowUploadFeedbackResponse{
+				Kind: api.ReleaseWorkflowUploadFeedbackQuestionnaire,
+				Questionnaire: &api.ReleaseWorkflowUploadQuestionnaire{
+					TrackerID: action.TrackerID,
+					Answers:   cloneCLIStringPointerMap(instructions[action.TrackerID].Questionnaire),
+				},
+			}
+			return feedback, false, nil
+		}
+	}
 	fmt.Fprintln(s.streams.out)
 	prompt := fmt.Sprintf("Upload to %s despite duplicate evidence? [y/N]: ", result.TrackerID)
 	if cliDupeRequiresRiskAcknowledgement(result) {
@@ -743,13 +792,8 @@ func printCLICompositeDupeMatches(output io.Writer, matches []api.DupeMatchProje
 			emptyCLIValue(string(match.EvidenceStatus)),
 			emptyCLIValue(string(match.HDR.Origin)),
 		)
-		if match.EvidenceFingerprint != "" {
-			fmt.Fprintf(
-				output,
-				"     Candidate ID: %s; evidence fingerprint: %s\n",
-				logging.SanitizeMessage(match.ID),
-				logging.SanitizeMessage(string(match.EvidenceFingerprint)),
-			)
+		if match.ID != "" {
+			fmt.Fprintf(output, "     Candidate ID: %s\n", logging.SanitizeMessage(match.ID))
 		}
 		if match.Relation == api.DupeRelationManualReview {
 			fmt.Fprintf(output, "     Policy review: %s\n", match.Relation)

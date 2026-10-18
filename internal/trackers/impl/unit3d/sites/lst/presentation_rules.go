@@ -67,7 +67,7 @@ func presentationReviewQuestions(subject api.TrackerValidationSubject) []api.Tra
 		fields[i].Key = assetQuestionKey(subject, "presentation_"+key+"_"+string(nameKey))
 		fields[i].Required = subject.PersonalRelease
 		fields[i].Value = strings.TrimSpace(subject.QuestionnaireAnswers[fields[i].Key])
-		fields[i].NeedsReview = fields[i].Value == "" || fields[i].Value == "unresolved"
+		fields[i].NeedsReview = fields[i].Required && (fields[i].Value == "" || fields[i].Value == "unresolved")
 	}
 	return fields
 }
@@ -87,6 +87,9 @@ func presentationReviewFailures(subject api.TrackerValidationSubject) []api.Rule
 	}
 	for _, field := range presentationReviewQuestions(subject) {
 		value := strings.TrimSpace(subject.QuestionnaireAnswers[field.Key])
+		if !field.Required && (value == "" || value == "unresolved") {
+			continue
+		}
 		valid := field.Kind == "text" && value != "" ||
 			field.Kind == "select" && slices.Contains(field.Options, value) && (value == "reviewed_correct" || value == "reviewed_complete")
 		if valid {

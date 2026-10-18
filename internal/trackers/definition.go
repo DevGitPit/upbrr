@@ -524,6 +524,8 @@ type UploadArtifactPolicyProvider interface {
 
 // DupePolicy declares tracker-specific duplicate comparison semantics.
 type DupePolicy struct {
+	// Questionnaire projects comparison questions only from server-owned duplicate candidates.
+	Questionnaire func(PreparationInput) []api.TrackerQuestionnaireField `json:"-"`
 	// TargetEvidence resolves generation-bound source and comparison evidence.
 	TargetEvidence func(api.UploadSubject) (api.DupeReleaseEvidence, []api.DupeComparisonEvidence) `json:"-"`
 	// CompareEvidence applies tracker-owned replacement safeguards after exact identity and disjoint content.

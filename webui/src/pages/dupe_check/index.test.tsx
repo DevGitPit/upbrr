@@ -265,8 +265,8 @@ describe("DupeCheckPage", () => {
     );
     expect(screen.getByText(warning)).toBeInTheDocument();
     expect(
-      screen.getByText("Evidence reference: episode / synthetic-current-candidate"),
-    ).toBeInTheDocument();
+      screen.queryByText("Evidence reference: episode / synthetic-current-candidate"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("manual review")).toBeInTheDocument();
     expect(screen.queryByText("proposed trumps")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "Acknowledge dupe risk for SP" }));

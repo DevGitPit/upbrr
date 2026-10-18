@@ -685,6 +685,18 @@ func TestDuplicateTargetRetainsSeparatedEditionParts(t *testing.T) {
 
 type reviewQuestionnaireDefinition struct{ stubDefinition }
 
+func TestProjectQuestionnaireRetainsHDRGradeGuidance(t *testing.T) {
+	t.Parallel()
+	fields := ProjectQuestionnaire(&api.TrackerQuestionnaire{Fields: []api.TrackerQuestionnaireField{{
+		Key:                "hybrid_evidence",
+		Required:           true,
+		HDRGradeComparison: true,
+	}}})
+	if len(fields) != 1 || !fields[0].HDRGradeComparison {
+		t.Fatalf("grade guidance lost from projected questionnaire: %#v", fields)
+	}
+}
+
 func (d reviewQuestionnaireDefinition) ProjectionQuestionnaire(input PreparationInput) *api.TrackerQuestionnaire {
 	return &api.TrackerQuestionnaire{Tracker: d.name, Fields: []api.TrackerQuestionnaireField{{
 		Key:      "review",

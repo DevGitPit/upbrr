@@ -2196,6 +2196,18 @@ export function ReleaseSessionProvider({
     duplicateAssessmentCurrent &&
     questionnaireStatus !== "error" &&
     (!questionnaireRefreshPending || questionnaireRefreshCurrent);
+  const gradeComparisonTrackers = questionnaireSnapshotCurrent
+    ? questionnaires
+        .filter(
+          (projection) =>
+            state.selectedTrackers.includes(projection.trackerId) &&
+            [
+              ...(projection.questionnaire || []),
+              ...(projection.preparationQuestionnaire || []),
+            ].some((field) => field.hdrGradeComparison),
+        )
+        .map((projection) => projection.displayName || projection.trackerId)
+    : [];
   const duplicateOperation =
     workflowView.current?.operation?.operation === "duplicate_check"
       ? workflowView.current.operation
@@ -3195,6 +3207,14 @@ export function ReleaseSessionProvider({
         result: retainedHDRAnalysis,
         pendingRequest: pendingHDRRequest,
         comparison: workflowView.current?.workflow.hdrComparison || null,
+        requirementsNeedRefresh:
+          access.hdrAnalysis.available &&
+          state.selectedTrackers.length > 0 &&
+          !duplicateAssessmentCurrent &&
+          questionnaireStatus === "idle" &&
+          workflowView.status !== "running" &&
+          !activeWorkflowOperation,
+        gradeComparisonTrackers,
         selectionRecoveryNote: workflowView.current?.workflow.hdrImages?.recoveryNote,
         includedArtifactIDs: workflowView.current?.workflow.hdrAnalysisEnabled
           ? workflowView.current.workflow.hdrImages?.artifactIds ||
@@ -3222,9 +3242,10 @@ export function ReleaseSessionProvider({
         message: hdrOperation?.message || "",
         progress: hdrOperation?.progress || 0,
         mutationBlockedReason: hdrMutationBlockedReason,
-        error: hdrError,
+        error: hdrError || (questionnaireRefreshCurrent ? questionnaireRefresh.error : ""),
       },
       generate: runHDRAnalysis,
+      refreshRequirements: refreshQuestionnaires,
       selectComparison: (sourcePath) =>
         runBackendWorkflow((current, commandID, signal) =>
           activePorts.workflow.selectHDRComparison(current, sourcePath, commandID, signal),

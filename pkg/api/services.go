@@ -226,6 +226,7 @@ type ExactMediaAssets struct {
 }
 
 type HDRDescriptionPlot struct {
+	GenerationComplete     bool
 	AudioTrackID           string
 	MeasurementFingerprint string
 	RenderFingerprint      string
@@ -375,6 +376,13 @@ func validateExactMediaUploads(channel string, uploads []UploadedImageLink, allo
 // instruction, and prerequisite view. It excludes preparation diagnostics,
 // resolver evidence, cache freshness, and client-search implementation state.
 type UploadSubject struct {
+	// TrackerDuplicateReviewCandidates is server-owned, fresh assessment context for comparison questions.
+	// It is never populated from public upload input or canonical prepared facts.
+	TrackerDuplicateReviewCandidates map[string][]DupeMatchProjection `json:"-"`
+
+	// TrackerHDRArtifacts retains server-owned selected image associations from the exact description snapshot.
+	TrackerHDRArtifacts map[string][]HDRArtifactEvidence `json:"-"`
+
 	VideoEncoder               string
 	MediaFileFacts             MediaFileFacts
 	StaffUploadTokens          map[string]StaffUploadToken `json:"-"`
@@ -687,19 +695,36 @@ type AssetEvidence struct {
 	Count                int
 }
 
+// HDRArtifactEvidence identifies a selected, source-bound analysis image without local paths.
+// Hosted URLs establish description inclusion, not the quality of the underlying evidence.
+type HDRArtifactEvidence struct {
+	// GenerationComplete records completed extraction/measurement, never a quality verdict.
+	GenerationComplete     bool             `json:"generationComplete"`
+	Analysis               HDRAnalysisRef   `json:"analysis"`
+	ArtifactID             PublicResourceID `json:"artifactId"`
+	Kind                   HDRArtifactKind  `json:"kind"`
+	TargetID               string           `json:"targetId"`
+	MeasurementFingerprint string           `json:"measurementFingerprint,omitempty"`
+	RenderFingerprint      string           `json:"renderFingerprint,omitempty"`
+	ImageURLs              []string         `json:"imageUrls,omitempty"`
+}
+
 // AssetFacts contains prepared-resource readiness without exposing local paths.
 type AssetFacts struct {
-	EvidenceFingerprint WorkflowFingerprint
-	Status              MetadataEvidenceStatus
-	MediaInfoJSON       AssetEvidence
-	MediaInfoText       AssetEvidence
-	DVDVOBMediaInfo     AssetEvidence
-	BDInfo              AssetEvidence
-	NFO                 AssetEvidence
-	Screenshots         AssetEvidence
-	HostedScreenshots   AssetEvidence
-	DVDMenus            AssetEvidence
-	HostedDVDMenus      AssetEvidence
+	// ScreenshotFingerprint binds selected images and tracker-usable hosted variants.
+	ScreenshotFingerprint WorkflowFingerprint
+	HDRArtifacts          []HDRArtifactEvidence
+	EvidenceFingerprint   WorkflowFingerprint
+	Status                MetadataEvidenceStatus
+	MediaInfoJSON         AssetEvidence
+	MediaInfoText         AssetEvidence
+	DVDVOBMediaInfo       AssetEvidence
+	BDInfo                AssetEvidence
+	NFO                   AssetEvidence
+	Screenshots           AssetEvidence
+	HostedScreenshots     AssetEvidence
+	DVDMenus              AssetEvidence
+	HostedDVDMenus        AssetEvidence
 }
 
 // AvailabilityFacts contains provider-entry evidence available to validation.
@@ -854,6 +879,8 @@ func NewTrackerValidationSubject(subject UploadSubject, tracker string) TrackerV
 	packageFacts := deriveValidationPackageFacts(subject.SourcePath, subject.FileList)
 	mediaFacts := deriveValidationMediaFileFacts(subject, packageFacts.MediaFileCount)
 	assetFacts := deriveValidationAssetFacts(subject)
+	assetFacts.HDRArtifacts = subject.HDRArtifactEvidence(tracker)
+	assetFacts.ScreenshotFingerprint = validationScreenshotFingerprint(subject.ExactMedia, tracker)
 	availabilityFacts := deriveValidationAvailabilityFacts(subject.ProviderMetadata)
 	provenanceFacts := deriveValidationProvenanceFacts(subject.Identity, subject.ProviderMetadata)
 	return TrackerValidationSubject{
@@ -1658,6 +1685,7 @@ func NewRuleSubject(subject UploadSubject) RuleSubject {
 // TrackerQuestionnaireAnswers contains operation-local evidence keyed by tracker
 // and field, rather than reusable media facts.
 type DescriptionSubject struct {
+	TrackerHDRArtifacts         map[string][]HDRArtifactEvidence
 	VideoCodec                  string
 	HasEncodeSettings           bool
 	TrackerQuestionnaireAnswers map[string]map[string]string
@@ -1703,6 +1731,7 @@ type DescriptionSubject struct {
 // read model and detaches mutable collections.
 func NewDescriptionSubject(subject UploadSubject) DescriptionSubject {
 	projected := DescriptionSubject{
+		TrackerHDRArtifacts:         cloneTrackerValidationValue(subject.TrackerHDRArtifacts),
 		VideoCodec:                  subject.VideoCodec,
 		HasEncodeSettings:           subject.HasEncodeSettings,
 		TrackerQuestionnaireAnswers: subject.TrackerQuestionnaireAnswers,
@@ -2575,6 +2604,8 @@ type TrackerQuestionnaire struct {
 }
 
 type TrackerQuestionnaireField struct {
+	// HDRGradeComparison requests conditional guidance beside the HDR analysis controls.
+	HDRGradeComparison bool `json:"HDRGradeComparison,omitempty"`
 	// NeedsReview requests correction even when a previous answer is nonempty or optional.
 	NeedsReview bool `json:"NeedsReview,omitempty"`
 	Key         string

@@ -4848,6 +4848,8 @@ func (m *Module) projectTrackersWithRuleAuthorizations(
 	if err != nil {
 		return CommandResult{}, fmt.Errorf("release workflow resolve tracker projection subject: %w", err)
 	}
+	subject.TrackerDuplicateReviewCandidates = questionnaireDuplicateCandidates(state, release, now)
+	applyDescriptionHDRQuestionnaireEvidence(&subject, state)
 	// Acknowledgement reprojects the same generation; preserve only server-owned
 	// title evidence. A new source generation must acquire its own evidence.
 	if retainedRef := state.Workflow.TrackerProjections; retainedRef != nil {
@@ -5479,6 +5481,10 @@ func (m *Module) checkDuplicates(
 	}
 	if err != nil {
 		return CommandResult{}, fmt.Errorf("release workflow build duplicate assessment: %w", err)
+	}
+	snapshot, err = m.projectDuplicateQuestionnaires(ctx, state, projections, snapshot)
+	if err != nil {
+		return CommandResult{}, err
 	}
 	return m.publishBuiltDupes(ownerID, state, nextRevision, now, projections, snapshot, privateEvidence, command.CheckOrdinal)
 }
@@ -7219,6 +7225,15 @@ func (m *Module) mutateDescriptionOverride(
 	if err != nil {
 		return CommandResult{}, err
 	}
+	retainedHDRArtifacts := currentDescriptionHDRArtifacts(state)
+	if len(retainedHDRArtifacts) > 0 {
+		resources, wrapped := privateMedia.(DescriptionResources)
+		if !wrapped {
+			resources.Media = privateMedia
+		}
+		resources.HDRArtifacts = retainedHDRArtifacts
+		privateMedia = resources
+	}
 	targets, err := resolveDownstreamTrackerSet(state, nil, downstreamStageDescriptions, now)
 	if err != nil {
 		return CommandResult{}, err
@@ -7248,6 +7263,7 @@ func (m *Module) mutateDescriptionOverride(
 	}
 
 	updated := current
+	updated.HDRArtifacts = retainedHDRArtifacts
 	updated.Descriptions = append([]api.RenderedDescription(nil), current.Descriptions...)
 	updated.Descriptions[targetIndex] = *rebuiltTarget
 	updated.InputFingerprint = rebuilt.InputFingerprint
@@ -7256,6 +7272,13 @@ func (m *Module) mutateDescriptionOverride(
 	targetTrackers := make(map[api.TrackerID]struct{}, len(rebuiltTarget.TrackerIDs))
 	for _, trackerID := range rebuiltTarget.TrackerIDs {
 		targetTrackers[trackerID] = struct{}{}
+		delete(updated.HDRArtifacts, trackerID)
+		if artifacts := rebuilt.HDRArtifacts[trackerID]; len(artifacts) > 0 {
+			if updated.HDRArtifacts == nil {
+				updated.HDRArtifacts = make(map[api.TrackerID][]api.HDRArtifactEvidence)
+			}
+			updated.HDRArtifacts[trackerID] = artifacts
+		}
 	}
 	updated.TrackerResults = make([]api.DescriptionTrackerResult, 0, len(current.TrackerResults))
 	for _, result := range current.TrackerResults {
