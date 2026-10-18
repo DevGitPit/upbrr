@@ -200,6 +200,20 @@ fields that need a combined label, `UploadSubject.EditionLabel()` joins the fina
 name policies must still edit their individual components. Older prepared contracts require
 preparation again rather than parsing stored names to fill the new roles.
 
+Automatic/provider non-edition annotations belong in `ReleaseFeatures`, never an edition-ID mapping.
+`EditionDisplay` is an ordered display-only projection of previously rendered wording. Each fragment
+retains its text and an optional reference to an already-classified feature; an empty reference is
+not evidence of an edition. `NameRoleEditionDisplay` replaces rendered `NameRoleEdition` when this
+projection is present, preserving its old position and ordering without duplicating genuine edition
+words. Naming policies that normalize or omit the old edition text apply that same display policy
+to the replacement role. Manual edition corrections clear the automatic projection.
+
+Only display consumers may use `EditionDisplayText` or `UploadSubject.EditionDisplayLabel()`.
+Edition validation and duplicate facts continue using canonical `EditionLabel()` and independent
+feature facts; never parse display wording to infer semantic identity. Payloads with combined display
+labels and feature-review rows may retain the prepared annotation spelling. Copy the ordered slice
+when projecting a prepared generation. Older cached generations require preparation again.
+
 These roles are defined in `pkg/api/naming_document.go`; not every release layout contains every
 role. Editing targets the whole component, so audio subfields, for example, are not separately
 addressable roles. Components retain their display
@@ -983,7 +997,10 @@ evidence, and use that same mapping for payload construction and `TrackerDryRunE
 The shared projection binds the catalogue to review fingerprints and rejects changed selections
 or evidence during final preparation. Inspection fields are separate from tracker wire payloads.
 Canonical `ReleaseFeatures` annotations are distinct from Cut, Edition, Presentation, and
-EditionSet. Consume those prepared feature values directly; do not recover them from rendered
+EditionSet. Automatic Hybrid evidence is carried as `api.ReleaseFeatureHybrid`, not
+as Edition text. Preserve the separate Hybrid naming role and any supported source-composition
+payload tags; never send this annotation to editorial edition-ID mappings. Duplicate targets
+retain these annotations independently from their edition label. Consume those prepared feature values directly; do not recover them from rendered
 names or promote them into edition identity just to expose tracker tags.
 
 Keep all endpoint, payload, protocol auth, parser, rule, validation, and policy behavior in this

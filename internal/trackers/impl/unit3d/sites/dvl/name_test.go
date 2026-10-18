@@ -489,8 +489,8 @@ func TestDVLProfileUsesStructuredPolicy(t *testing.T) {
 	t.Parallel()
 
 	policy := unit3d.NewWithProfile(Profile()).ReleaseNamePolicy()
-	if policy.ID != "unit3d/dvl/v2" || policy.Structured == nil || policy.Resolver != nil {
-		t.Fatalf("DVL policy = %#v, want structured unit3d/dvl/v2", policy)
+	if policy.ID != "unit3d/dvl/v3" || policy.Structured == nil || policy.Resolver != nil {
+		t.Fatalf("DVL policy = %#v, want structured unit3d/dvl/v3", policy)
 	}
 }
 

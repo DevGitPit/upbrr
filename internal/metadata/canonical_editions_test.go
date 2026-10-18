@@ -52,7 +52,7 @@ func TestCanonicalEditionPartsPreserveParserCategories(t *testing.T) {
 func TestCanonicalProviderAttributesKeepCategories(t *testing.T) {
 	t.Parallel()
 	parts := imdbEditionParts([]string{"Director's Cut", "IMAX", "Open Matte", "remastered version", "Unknown Label"})
-	if parts.Cut != "Director's Cut" || parts.Presentation != "IMAX Open Matte" || parts.Edition != "Remastered Version Unknown Label" {
+	if parts.Cut != "Director's Cut" || parts.Presentation != "IMAX Open Matte" || parts.Edition != "Unknown Label" || api.EditionDisplayText(parts.EditionDisplay) != "Remastered Version Unknown Label" || !slices.Contains(parts.Features, api.ReleaseFeatureRemaster) {
 		t.Fatalf("provider parts = %#v", parts)
 	}
 	if got := imdbEditionParts([]string{"A Director Remastered This"}); got.Cut != "" || got.Edition != "A Director Remastered This" {

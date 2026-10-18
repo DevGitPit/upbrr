@@ -1986,6 +1986,20 @@
           "pages"
         ]
       },
+      "EditionDisplayPart": {
+        "type": "object",
+        "properties": {
+          "Feature": {
+            "$ref": "#/components/schemas/ReleaseFeature"
+          },
+          "Text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "Text"
+        ]
+      },
       "EncodeSettingsStatus": {
         "type": "string"
       },
@@ -4363,6 +4377,12 @@
           "Edition": {
             "type": "string"
           },
+          "EditionDisplay": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EditionDisplayPart"
+            }
+          },
           "EditionSet": {
             "type": "string"
           },
@@ -4504,6 +4524,7 @@
           "Distributor",
           "DistributorProvenance",
           "Edition",
+          "EditionDisplay",
           "EditionSet",
           "HDR",
           "HDRFacts",
@@ -11056,6 +11077,12 @@
           },
           "region": {
             "type": "string"
+          },
+          "releaseFeatures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReleaseFeature"
+            }
           },
           "releaseOrigin": {
             "type": "string"

@@ -38,10 +38,10 @@ func releaseNamePolicy(site siteDefinition) trackers.ReleaseNamePolicyBinding {
 	movieYearProvider := api.IdentityProviderTMDB
 	switch site.Name {
 	case "CZ":
-		version = "v8"
+		version = "v9"
 		movieYearProvider = api.IdentityProviderIMDB
 	case "PHD":
-		version = "v5"
+		version = "v6"
 	}
 	return trackers.WithMovieYearProvider(trackers.StructuredReleaseNamePolicy(
 		fmt.Sprintf("azfamily/%s/%s", strings.ToLower(site.Name), version),
@@ -113,7 +113,7 @@ func applyCinemaZNameDefaults(editor *trackers.NameEditor, meta api.UploadSubjec
 	title := cinemaZTitle(meta)
 	if title == "" {
 		return &trackers.NameRuleError{
-			Rule:   "azfamily/cz/v8",
+			Rule:   "azfamily/cz/v9",
 			Role:   api.NameRoleTitle,
 			Reason: "no Latin-safe title is available; set a Latin-safe manual original title and reprepare",
 		}
@@ -311,14 +311,19 @@ func normalizePHDVideoValue(value string) string {
 }
 
 func normalizeCinemaZEdition(editor *trackers.NameEditor) error {
-	return normalizeNameComponent(editor, api.NameRoleEdition, func(value string) string {
-		value = czLimitedPattern.ReplaceAllString(value, "")
-		value = czCriterionPattern.ReplaceAllString(value, "")
-		value = czResolutionPattern.ReplaceAllString(value, "")
-		value = czAnniversaryPattern.ReplaceAllString(value, "")
-		value = czUppercasePattern.ReplaceAllStringFunc(value, strings.ToUpper)
-		return strings.Join(strings.Fields(value), " ")
-	})
+	for _, role := range []api.ReleaseNameRole{api.NameRoleEdition, api.NameRoleEditionDisplay} {
+		if err := normalizeNameComponent(editor, role, func(value string) string {
+			value = czLimitedPattern.ReplaceAllString(value, "")
+			value = czCriterionPattern.ReplaceAllString(value, "")
+			value = czResolutionPattern.ReplaceAllString(value, "")
+			value = czAnniversaryPattern.ReplaceAllString(value, "")
+			value = czUppercasePattern.ReplaceAllStringFunc(value, strings.ToUpper)
+			return strings.Join(strings.Fields(value), " ")
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func normalizeCinemaZCut(editor *trackers.NameEditor) error {
@@ -331,12 +336,17 @@ func normalizeCinemaZCut(editor *trackers.NameEditor) error {
 }
 
 func normalizePHDEdition(editor *trackers.NameEditor) error {
-	return normalizeNameComponent(editor, api.NameRoleEdition, func(value string) string {
-		value = phdLimitedPattern.ReplaceAllString(value, "")
-		value = phdCriterionPattern.ReplaceAllString(value, "")
-		value = phdAnniversary.ReplaceAllString(value, "")
-		return strings.Join(strings.Fields(value), " ")
-	})
+	for _, role := range []api.ReleaseNameRole{api.NameRoleEdition, api.NameRoleEditionDisplay} {
+		if err := normalizeNameComponent(editor, role, func(value string) string {
+			value = phdLimitedPattern.ReplaceAllString(value, "")
+			value = phdCriterionPattern.ReplaceAllString(value, "")
+			value = phdAnniversary.ReplaceAllString(value, "")
+			return strings.Join(strings.Fields(value), " ")
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func normalizePHDCut(editor *trackers.NameEditor) error {

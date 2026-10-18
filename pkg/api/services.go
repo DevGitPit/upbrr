@@ -478,20 +478,23 @@ type UploadSubject struct {
 	HasEncodeSettings           bool
 	BitDepth                    string
 	ReleaseFeatures             []ReleaseFeature
-	EditionSet                  string
-	Cut                         string
-	Presentation                string
-	Edition                     string
-	Repack                      string
-	WebDV                       bool
-	Assessments                 ReleaseAssessments
-	StreamOptimized             int
-	Service                     string
-	ServiceLongName             string
-	Filename                    string
-	ReleaseName                 string
-	ReleaseNameNoTag            string
-	ReleaseNameClean            string
+	// EditionDisplay preserves previously rendered automatic annotation wording for display only.
+	// Never use it for edition identity, validation mappings, or duplicate comparison.
+	EditionDisplay   []EditionDisplayPart
+	EditionSet       string
+	Cut              string
+	Presentation     string
+	Edition          string
+	Repack           string
+	WebDV            bool
+	Assessments      ReleaseAssessments
+	StreamOptimized  int
+	Service          string
+	ServiceLongName  string
+	Filename         string
+	ReleaseName      string
+	ReleaseNameNoTag string
+	ReleaseNameClean string
 	// AlternateTitle is the finalized alternate from this subject's prepared naming facts.
 	// It may include an "AKA " prefix.
 	// Empty means no alternate was selected; NamePresentation controls omission.
@@ -764,20 +767,24 @@ type TrackerValidationSubject struct {
 	UHD                        string
 	Distributor                string
 	Region                     string
-	EditionSet                 string
-	Cut                        string
-	Presentation               string
-	Edition                    string
-	Repack                     string
-	WebDV                      bool
-	Service                    string
-	ServiceLongName            string
-	StreamOptimized            int
-	Assessments                ReleaseAssessments
-	QuestionnaireAnswers       map[string]string
-	TrackerConfigOverrides     TrackerConfigOverrides
-	TrackerSiteOverrides       TrackerSiteOverrides
-	ReleaseNameOverrides       ReleaseNameOverrides
+	ReleaseFeatures            []ReleaseFeature
+	// EditionDisplay preserves previously rendered automatic annotation wording for display only.
+	// Never use it for edition identity, validation mappings, or duplicate comparison.
+	EditionDisplay         []EditionDisplayPart
+	EditionSet             string
+	Cut                    string
+	Presentation           string
+	Edition                string
+	Repack                 string
+	WebDV                  bool
+	Service                string
+	ServiceLongName        string
+	StreamOptimized        int
+	Assessments            ReleaseAssessments
+	QuestionnaireAnswers   map[string]string
+	TrackerConfigOverrides TrackerConfigOverrides
+	TrackerSiteOverrides   TrackerSiteOverrides
+	ReleaseNameOverrides   ReleaseNameOverrides
 	// DescriptionOverride is the description selected for Tracker.
 	DescriptionOverride string
 	// DescriptionGroupsFinal distinguishes pending description work from final
@@ -889,6 +896,8 @@ func NewTrackerValidationSubject(subject UploadSubject, tracker string) TrackerV
 		Cut:                         subject.Cut,
 		Presentation:                subject.Presentation,
 		Edition:                     subject.Edition,
+		ReleaseFeatures:             append([]ReleaseFeature(nil), subject.ReleaseFeatures...),
+		EditionDisplay:              append([]EditionDisplayPart(nil), subject.EditionDisplay...),
 		Repack:                      subject.Repack,
 		WebDV:                       subject.WebDV,
 		Service:                     subject.Service,
@@ -2489,6 +2498,8 @@ type ReleaseInfo struct {
 	Cut          []string
 	Edition      []string
 	Other        []string
+
+	ReleaseFeatures []ReleaseFeature
 }
 
 type TagOverride struct {

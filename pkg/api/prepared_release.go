@@ -204,10 +204,23 @@ type SubtitleLanguageCoverage struct {
 	Coverage SubtitleCoverage
 }
 
+// EditionDisplayPart retains one ordered fragment of previously rendered
+// automatic edition wording. Feature references an independently classified
+// release feature; an empty reference is display text, not edition evidence.
+// Only naming and feature-review presentation consume this projection.
+type EditionDisplayPart struct {
+	Text    string
+	Feature ReleaseFeature `json:",omitempty"`
+}
+
 // ReleaseFeature identifies a prepared annotation that does not establish a cut or edition.
 type ReleaseFeature string
 
 const (
+	// ReleaseFeatureHybrid describes mixed release sources, never an editorial cut.
+	ReleaseFeatureHybrid        ReleaseFeature = "hybrid"
+	ReleaseFeatureRestoration   ReleaseFeature = "restoration"
+	ReleaseFeatureRemaster      ReleaseFeature = "remaster"
 	ReleaseFeatureTwoDiscSet    ReleaseFeature = "two_disc_set"
 	ReleaseFeature4KRestoration ReleaseFeature = "4k_restoration"
 	ReleaseFeature4KRemaster    ReleaseFeature = "4k_remaster"
@@ -259,6 +272,9 @@ type MediaFacts struct {
 	BitDepth                             string
 	// ReleaseFeatures are source-backed annotations, separate from naming components.
 	ReleaseFeatures []ReleaseFeature `json:",omitempty"`
+	// EditionDisplay preserves previously rendered automatic annotation wording for display only.
+	// Never use it for edition identity, validation mappings, or duplicate comparison.
+	EditionDisplay []EditionDisplayPart
 	// Cut, Edition, and Presentation are independently addressable naming facts.
 	EditionSet        string
 	Cut               string

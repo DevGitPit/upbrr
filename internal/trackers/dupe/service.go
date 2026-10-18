@@ -965,6 +965,8 @@ func duplicateTargetForEvaluation(meta api.DuplicateSubject) api.TrackerDuplicat
 		Pack:        meta.TVPack,
 		SizeBytes:   meta.SourceSize,
 		FileNames:   append([]string(nil), meta.FileList...),
+
+		ReleaseFeatures: append([]api.ReleaseFeature(nil), meta.Release.ReleaseFeatures...),
 	}
 }
 

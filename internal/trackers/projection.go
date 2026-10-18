@@ -659,6 +659,8 @@ func duplicateTarget(subject api.UploadSubject) api.TrackerDuplicateTarget {
 		Pack:        subject.TVPack,
 		SizeBytes:   subject.SourceSize,
 		FileNames:   append([]string(nil), subject.FileList...),
+
+		ReleaseFeatures: append([]api.ReleaseFeature(nil), subject.ReleaseFeatures...),
 	}
 }
 

@@ -282,28 +282,31 @@ type State struct {
 	HasEncodeSettings                    bool
 	BitDepth                             string
 	ReleaseFeatures                      []api.ReleaseFeature
-	EditionSet                           string
-	Cut                                  string
-	Presentation                         string
-	Edition                              string
-	Repack                               string
-	WebDV                                bool
-	MediaInfoUniqueIDPresent             bool
-	MediaInfoEncodeSettingsPresent       bool
-	VideoBitrate                         api.VideoBitrateAssessment
-	StreamOptimized                      int
-	Service                              string
-	ServiceLongName                      string
-	Filename                             string
-	ReleaseName                          string
-	ReleaseNameNoTag                     string
-	ReleaseNameClean                     string
-	AvailableGeneratedName               *api.ReleaseNameDocument
-	GeneratedName                        *api.ReleaseNameDocument
-	GeneratedReleaseNames                api.GeneratedReleaseNameVariants
-	ReleaseNamePresentation              api.ReleaseNamePresentation
-	ReleaseNameMissing                   []string
-	BDInfo                               map[string]any
+	// EditionDisplay preserves previously rendered automatic annotation wording for display only.
+	// Never use it for edition identity, validation mappings, or duplicate comparison.
+	EditionDisplay                 []api.EditionDisplayPart
+	EditionSet                     string
+	Cut                            string
+	Presentation                   string
+	Edition                        string
+	Repack                         string
+	WebDV                          bool
+	MediaInfoUniqueIDPresent       bool
+	MediaInfoEncodeSettingsPresent bool
+	VideoBitrate                   api.VideoBitrateAssessment
+	StreamOptimized                int
+	Service                        string
+	ServiceLongName                string
+	Filename                       string
+	ReleaseName                    string
+	ReleaseNameNoTag               string
+	ReleaseNameClean               string
+	AvailableGeneratedName         *api.ReleaseNameDocument
+	GeneratedName                  *api.ReleaseNameDocument
+	GeneratedReleaseNames          api.GeneratedReleaseNameVariants
+	ReleaseNamePresentation        api.ReleaseNamePresentation
+	ReleaseNameMissing             []string
+	BDInfo                         map[string]any
 }
 
 // CollectionPolicy contains preparation-only controls used while gathering

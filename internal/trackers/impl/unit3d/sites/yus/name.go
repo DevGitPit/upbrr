@@ -14,7 +14,7 @@ import (
 )
 
 func namePolicy() trackers.ReleaseNamePolicyBinding {
-	return trackers.StructuredReleaseNamePolicy("unit3d/yus/v9", trackers.StructuredNamePolicy{Defaults: applyYUSNameDefaults})
+	return trackers.StructuredReleaseNamePolicy("unit3d/yus/v10", trackers.StructuredNamePolicy{Defaults: applyYUSNameDefaults})
 }
 
 func applyYUSNameDefaults(editor *trackers.NameEditor, meta api.UploadSubject, _ config.TrackerConfig) error {
@@ -39,8 +39,10 @@ func applyYUSNameDefaults(editor *trackers.NameEditor, meta api.UploadSubject, _
 	if err := applyYUSTVDBDisambiguation(editor, meta); err != nil {
 		return err
 	}
-	if err := editor.Omit(api.NameRoleEdition); err != nil {
-		return fmt.Errorf("omit YUS edition: %w", err)
+	for _, role := range []api.ReleaseNameRole{api.NameRoleEdition, api.NameRoleEditionDisplay} {
+		if err := editor.Omit(role); err != nil {
+			return fmt.Errorf("omit YUS %s: %w", role, err)
+		}
 	}
 	for _, role := range []api.ReleaseNameRole{api.NameRoleEditionSet, api.NameRoleCut, api.NameRolePresentation} {
 		if err := editor.Include(role); err != nil {

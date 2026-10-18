@@ -14,7 +14,7 @@ import (
 )
 
 func namePolicy() trackers.ReleaseNamePolicyBinding {
-	return trackers.StructuredReleaseNamePolicy("unit3d/ulcx/v6", trackers.StructuredNamePolicy{Defaults: applyULCXNameDefaults})
+	return trackers.StructuredReleaseNamePolicy("unit3d/ulcx/v7", trackers.StructuredNamePolicy{Defaults: applyULCXNameDefaults})
 }
 
 func applyULCXNameDefaults(editor *trackers.NameEditor, meta api.UploadSubject, _ config.TrackerConfig) error {
@@ -27,8 +27,10 @@ func applyULCXNameDefaults(editor *trackers.NameEditor, meta api.UploadSubject, 
 	if err := applyULCXTVDBDisambiguation(editor, meta); err != nil {
 		return err
 	}
-	if err := editor.Omit(api.NameRoleEdition); err != nil {
-		return fmt.Errorf("omit ULCX edition: %w", err)
+	for _, role := range []api.ReleaseNameRole{api.NameRoleEdition, api.NameRoleEditionDisplay} {
+		if err := editor.Omit(role); err != nil {
+			return fmt.Errorf("omit ULCX %s: %w", role, err)
+		}
 	}
 	if isULCXFullDisc(meta) {
 		if err := insertULCXDiscDistributor(editor, meta); err != nil {

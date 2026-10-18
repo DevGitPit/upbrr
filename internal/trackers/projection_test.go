@@ -947,3 +947,19 @@ func TestProjectionQuestionnaireInputAlwaysPublishesAction(t *testing.T) {
 		})
 	}
 }
+
+func TestDuplicateTargetSeparatesHybridFromEdition(t *testing.T) {
+	subject := api.UploadSubject{
+		Cut:             "Director's Cut",
+		ReleaseFeatures: []api.ReleaseFeature{api.ReleaseFeatureHybrid},
+		EditionDisplay:  []api.EditionDisplayPart{{Text: "Hybrid", Feature: api.ReleaseFeatureHybrid}},
+	}
+	target := duplicateTarget(subject)
+	if target.Edition != "Director's Cut" || !slices.Equal(target.ReleaseFeatures, subject.ReleaseFeatures) {
+		t.Fatalf("target=%+v", target)
+	}
+	subject.ReleaseFeatures[0] = api.ReleaseFeatureExtras
+	if target.ReleaseFeatures[0] != api.ReleaseFeatureHybrid {
+		t.Fatal("target shares mutable features")
+	}
+}

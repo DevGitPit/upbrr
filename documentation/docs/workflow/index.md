@@ -206,3 +206,9 @@ Before submission, verify:
 - duplicate results, rule warnings, and manual prerequisites have been read.
 
 When any item is uncertain, stop before upload and resolve it manually.
+
+### Release annotations and editions
+
+Automatically detected Hybrid describes source composition and is kept separately from the title’s cut or edition. Recognized mastering, extras and packaging annotations from provider edition labels are also kept separately. Their existing displayed wording is retained without treating them as editorial edition IDs; filename-only feature annotations keep their existing naming behavior. Generic restoration or remastering does not imply a 4K source.
+
+Older prepared releases must be prepared again so cached mixed edition values cannot be reused. Explicit manual Edition entries and complete release-name overrides retain their existing behavior.

@@ -177,3 +177,56 @@ func TestPTPManualTechnicalLabelsUseCatalogue(t *testing.T) {
 		t.Fatalf("manual and detected features diverge or duplicate: %q", got)
 	}
 }
+
+func TestPTPHybridRemainsDistinctFeature(t *testing.T) {
+	subject := api.UploadSubject{Cut: "Director's Cut", ReleaseFeatures: []api.ReleaseFeature{api.ReleaseFeatureHybrid}}
+	if got := resolveRemasterTitle(subject); !strings.Contains(got, "Hybrid") || !strings.Contains(got, "Director's Cut") {
+		t.Fatalf("remaster title=%q", got)
+	}
+	for _, option := range editionFeatures(subject) {
+		if option.Label == "Hybrid" {
+			if !option.Selected || option.Category != "Feature" {
+				t.Fatalf("Hybrid=%+v", option)
+			}
+			return
+		}
+	}
+	t.Fatal("Hybrid missing from feature review")
+}
+
+func TestSeparatedFeatureDisplayPreservesPTPLabelsAndPayload(t *testing.T) {
+	for _, test := range []struct {
+		label   string
+		feature api.ReleaseFeature
+	}{
+		{"Remastered Version", api.ReleaseFeatureRemaster},
+		{"Restored", api.ReleaseFeatureRestoration},
+		{"4K Restoration", api.ReleaseFeature4KRestoration},
+		{"Extras", api.ReleaseFeatureExtras},
+	} {
+		t.Run(test.label, func(t *testing.T) {
+			legacy := api.UploadSubject{Cut: "Director's Cut", Edition: "Archive Label " + test.label + " Festival Label"}
+			separated := api.UploadSubject{
+				Cut:             "Director's Cut",
+				Edition:         "Archive Label Festival Label",
+				ReleaseFeatures: []api.ReleaseFeature{test.feature},
+				EditionDisplay:  []api.EditionDisplayPart{{Text: "Archive Label"}, {Text: test.label, Feature: test.feature}, {Text: "Festival Label"}},
+			}
+			if got, want := resolveRemasterTitle(separated), resolveRemasterTitle(legacy); got != want {
+				t.Fatalf("payload=%q want legacy=%q", got, want)
+			}
+			found := false
+			for _, option := range editionFeatures(separated) {
+				if option.Label == test.label && option.Selected {
+					found = true
+					if option.Category != "Feature" {
+						t.Fatalf("annotation is not a feature: %+v", option)
+					}
+				}
+			}
+			if !found {
+				t.Fatal("named feature absent from review")
+			}
+		})
+	}
+}

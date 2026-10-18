@@ -506,6 +506,11 @@ export type DupeSearchEvidence = Readonly<{
   wrongWorkCount?: number;
 }>;
 
+export type EditionDisplayPart = Readonly<{
+  Feature?: ReleaseFeature;
+  Text: string;
+}>;
+
 export type EncodeSettingsStatus = string;
 
 export type EpisodeFacts = Readonly<{
@@ -1158,6 +1163,7 @@ export type MediaFacts = Readonly<{
   Distributor: string;
   DistributorProvenance: FactProvenance;
   Edition: string;
+  EditionDisplay: readonly EditionDisplayPart[];
   EditionSet: string;
   HDR: string;
   HDRFacts: HDRFacts;
@@ -2680,6 +2686,7 @@ export type TrackerDuplicateTarget = Readonly<{
   pack: boolean;
   provider?: string;
   region?: string;
+  releaseFeatures?: readonly ReleaseFeature[];
   releaseOrigin?: string;
   repack?: string;
   resolution?: string;

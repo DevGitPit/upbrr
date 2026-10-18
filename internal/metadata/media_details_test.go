@@ -791,7 +791,7 @@ func TestEditionFromMetaSkipsIMDbRuntimeWhenManualEditionOverridePresent(t *test
 	}
 }
 
-func TestEditionFromMetaPromotesOnlyExactHybridOther(t *testing.T) {
+func TestEditionFromMetaSeparatesOnlyExactHybridOther(t *testing.T) {
 	tests := []struct {
 		name    string
 		release api.ReleaseInfo
@@ -800,12 +800,12 @@ func TestEditionFromMetaPromotesOnlyExactHybridOther(t *testing.T) {
 		{
 			name:    "exact case insensitive value",
 			release: api.ReleaseInfo{Other: []string{" HYBRiD "}},
-			want:    "Hybrid",
+			want:    "",
 		},
 		{
 			name:    "keeps existing edition",
 			release: api.ReleaseInfo{Edition: []string{"Extended"}, Other: []string{"HYBRiD", "RETAiL"}},
-			want:    "Extended Hybrid",
+			want:    "Extended",
 		},
 		{
 			name:    "ignores unrelated values",
@@ -854,7 +854,7 @@ func TestEditionFromMetaRetainsAvailableValueWhenNoEditionOverridePresent(t *tes
 	doc := mustParseMediaInfoDoc(`{"media":{"track":[{"@type":"General","Duration":"7500.000"}]}}`)
 
 	edition, _ := combinedEditionFromMeta(meta, doc)
-	if edition != "IMAX Collectors Hybrid" {
+	if edition != "IMAX Collectors" {
 		t.Fatalf("expected available filename edition when no-edition override is present, got %q", edition)
 	}
 }
@@ -2949,7 +2949,11 @@ func combinedEditionFromMeta(meta preparationstate.State, doc mediaInfoDoc) (str
 	if parts.Set != "" {
 		return parts.Set, parts.Repack
 	}
-	return strings.Join(strings.Fields(strings.Join([]string{parts.Cut, parts.Presentation, parts.Edition}, " ")), " "), parts.Repack
+	edition := parts.Edition
+	if api.EditionDisplayText(parts.EditionDisplay) != "" {
+		edition = api.EditionDisplayText(parts.EditionDisplay)
+	}
+	return strings.Join(strings.Fields(strings.Join([]string{parts.Cut, parts.Presentation, edition}, " ")), " "), parts.Repack
 }
 
 func TestDeriveMediaFactsReleaseVersionCorrections(t *testing.T) {

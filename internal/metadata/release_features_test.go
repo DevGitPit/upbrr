@@ -7,6 +7,7 @@ import (
 	"github.com/autobrr/rls"
 	preparationstate "github.com/autobrr/upbrr/internal/preparedrelease/state"
 	"github.com/autobrr/upbrr/pkg/api"
+	"slices"
 	"testing"
 )
 
@@ -45,7 +46,7 @@ func TestAutomaticHybridDoesNotKeepSolitaryTheatrical(t *testing.T) {
 	state := preparationstate.State{Release: api.ReleaseInfo{Cut: []string{"Theatrical.Cut"}, Other: []string{"HYBRiD"}}}
 	for range 2 {
 		parts := editionFromMeta(state, mediaInfoDoc{})
-		if parts.Cut != "" || parts.Edition != "Hybrid" {
+		if parts.Cut != "" || parts.Edition != "" || !slices.Contains(parts.Features, api.ReleaseFeatureHybrid) {
 			t.Fatalf("automatic Hybrid retained ordinary cut: %#v", parts)
 		}
 		state.Edition = parts.Edition

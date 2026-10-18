@@ -109,6 +109,7 @@ func (m *Module) ResolveUploadSubject(ctx context.Context, input api.UploadSubje
 		HasEncodeSettings:           release.Media.HasEncodeSettings,
 		BitDepth:                    release.Media.BitDepth,
 		ReleaseFeatures:             append([]api.ReleaseFeature(nil), release.Media.ReleaseFeatures...),
+		EditionDisplay:              append([]api.EditionDisplayPart(nil), release.Media.EditionDisplay...),
 		EditionSet:                  release.Media.EditionSet,
 		Cut:                         release.Media.Cut,
 		Presentation:                release.Media.Presentation,
@@ -605,6 +606,8 @@ func releaseInfo(release api.PreparedRelease) api.ReleaseInfo {
 		Cut:          singletonFact(release.Media.Cut),
 		Edition:      singletonFact(release.Media.Edition),
 		Other:        append([]string(nil), naming.Other...),
+
+		ReleaseFeatures: append([]api.ReleaseFeature(nil), release.Media.ReleaseFeatures...),
 	}
 }
 

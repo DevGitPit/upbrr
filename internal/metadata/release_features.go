@@ -76,6 +76,10 @@ func applyReleaseFeatures(parts *releaseEditionParts, meta preparationstate.Stat
 				}
 			default:
 				parts.Edition = appendEditionLabel(parts.Edition, feature.label)
+				if len(parts.EditionDisplay) > 0 &&
+					appendEditionLabel(api.EditionDisplayText(parts.EditionDisplay), feature.label) != api.EditionDisplayText(parts.EditionDisplay) {
+					parts.EditionDisplay = append(parts.EditionDisplay, api.EditionDisplayPart{Text: "/"}, api.EditionDisplayPart{Text: feature.label})
+				}
 			}
 		}
 	}

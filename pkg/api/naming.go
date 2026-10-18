@@ -84,6 +84,7 @@ type ReleaseNameRequest struct {
 	UHD          string
 	HDR          string
 	WebDV        bool
+	Hybrid       bool
 	EpisodeTitle string
 	// ManualEpisodeTitle reports that EpisodeTitle came from an explicit
 	// override. Both blank and nonblank manual values remain authoritative.
@@ -97,13 +98,15 @@ type ReleaseNameRequest struct {
 	Cut                string
 	Presentation       string
 	Edition            string
-	SearchYear         string
-	DailyDate          string
-	ManualDate         bool
-	TMDBDateMatch      bool
-	NoSeason           bool
-	NoYear             bool
-	NoAKA              bool
+	// EditionDisplay replaces edition wording only in generated names, never canonical edition evidence.
+	EditionDisplay string
+	SearchYear     string
+	DailyDate      string
+	ManualDate     bool
+	TMDBDateMatch  bool
+	NoSeason       bool
+	NoYear         bool
+	NoAKA          bool
 }
 
 // ReleaseNameVariant contains one internally consistent generated name form.
@@ -183,6 +186,28 @@ func IsSupportedReleaseVersion(value string) bool {
 // their independent components in the generated document.
 func (s UploadSubject) EditionLabel() string {
 	return releaseEditionLabel(s.Cut, s.Edition, s.Presentation)
+}
+
+// EditionDisplayLabel preserves prepared edition wording for display-only
+// payloads and naming. Validation and duplicate comparison use EditionLabel.
+func (s UploadSubject) EditionDisplayLabel() string {
+	edition := EditionDisplayText(s.EditionDisplay)
+	if edition == "" {
+		edition = s.Edition
+	}
+	return releaseEditionLabel(s.Cut, edition, s.Presentation)
+}
+
+// EditionDisplayText joins prepared display fragments in their original order
+// without deriving wording or edition evidence from their feature classifications.
+func EditionDisplayText(parts []EditionDisplayPart) string {
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part.Text); value != "" {
+			values = append(values, value)
+		}
+	}
+	return strings.Join(values, " ")
 }
 
 // EditionLabel returns the same finalized label used by upload payloads, so

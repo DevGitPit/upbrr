@@ -116,6 +116,7 @@ func buildReleaseName(req api.ReleaseNameRequest, logger api.Logger) api.Release
 		Cut:            strings.TrimSpace(req.Cut),
 		Presentation:   strings.TrimSpace(req.Presentation),
 		Edition:        edition,
+		EditionDisplay: removeHybrid(strings.TrimSpace(req.EditionDisplay)),
 		Repack:         repack,
 		Resolution:     resolution,
 		Region:         region,
@@ -133,12 +134,13 @@ func buildReleaseName(req api.ReleaseNameRequest, logger api.Logger) api.Release
 	}
 
 	hybrid := ""
-	if req.WebDV || containsExactHybrid(strings.Fields(edition)) {
+	if req.Hybrid || req.WebDV || containsExactHybrid(strings.Fields(edition)) {
 		hybrid = "Hybrid"
 	}
 	edition = removeHybrid(edition)
 	if retained.EditionSet != "" {
 		edition, retained.Cut, retained.Presentation = "", "", ""
+		retained.EditionDisplay = ""
 	}
 	retained.Edition = edition
 	retained.Hybrid = hybrid
@@ -324,17 +326,28 @@ func generatedReleaseNameDocument(
 					},
 				)
 			}
+			present := strings.TrimSpace(value.value) != ""
+			if value.role == api.NameRoleEdition && retained.EditionDisplay != "" {
+				present = false
+			}
 			components = append(components, api.ReleaseNameComponent{
 				Role:           value.role,
 				Value:          value.value,
 				AvailableValue: value.value,
-				Present:        strings.TrimSpace(value.value) != "",
+				Present:        present,
 				Join:           value.join,
 				AttachTo:       append([]api.ReleaseNameRole(nil), value.attachTo...),
 			})
 			if value.role == api.NameRoleEdition {
 				components = append(
 					components,
+					api.ReleaseNameComponent{
+						Role:           api.NameRoleEditionDisplay,
+						Value:          retained.EditionDisplay,
+						AvailableValue: retained.EditionDisplay,
+						Present:        retained.EditionDisplay != "",
+						Join:           " ",
+					},
 					api.ReleaseNameComponent{
 						Role:           api.NameRolePresentation,
 						Value:          retained.Presentation,
@@ -830,6 +843,7 @@ type retainedReleaseNameValues struct {
 	Cut            string
 	Presentation   string
 	Edition        string
+	EditionDisplay string
 	Hybrid         string
 	Repack         string
 	Resolution     string
@@ -907,6 +921,11 @@ func retainUnavailableReleaseNameComponents(
 		{
 			role:  api.NameRoleEdition,
 			value: values.Edition,
+			join:  " ",
+		},
+		{
+			role:  api.NameRoleEditionDisplay,
+			value: values.EditionDisplay,
 			join:  " ",
 		},
 		{
@@ -1037,7 +1056,8 @@ func retainedReleaseNameComponentIndex(components []api.ReleaseNameComponent, ro
 func retainedReleaseNameAnchors(role api.ReleaseNameRole) []api.ReleaseNameRole {
 	order := []api.ReleaseNameRole{
 		api.NameRoleSeason, api.NameRoleEpisode, api.NameRoleDailyDate, api.NameRoleEpisodeTitle,
-		api.NameRolePart, api.NameRoleThreeD, api.NameRoleEditionSet, api.NameRoleCut, api.NameRoleEdition, api.NameRolePresentation, api.NameRoleHybrid,
+		api.NameRolePart, api.NameRoleThreeD, api.NameRoleEditionSet, api.NameRoleCut, api.NameRoleEdition, api.NameRoleEditionDisplay,
+		api.NameRolePresentation, api.NameRoleHybrid,
 		api.NameRoleRepack, api.NameRoleResolution, api.NameRoleRegion, api.NameRoleSource,
 	}
 	if index := slices.Index(order, role); index >= 0 {
@@ -1292,39 +1312,41 @@ func releaseNameRequestFromMeta(meta preparationstate.State, logger api.Logger) 
 	}
 
 	return api.ReleaseNameRequest{
-		Category:      category,
-		Type:          typeValue,
-		ManualType:    manualType,
-		Title:         title,
-		AltTitle:      altTitle,
-		Year:          year,
-		Resolution:    meta.Release.Resolution,
-		Audio:         meta.Audio,
-		Service:       meta.Service,
-		Season:        strings.TrimSpace(meta.SeasonStr),
-		Episode:       strings.TrimSpace(meta.EpisodeStr),
-		Part:          "",
-		Repack:        meta.Repack,
-		ThreeD:        meta.Is3D,
-		Tag:           meta.Tag,
-		Source:        source,
-		UHD:           meta.UHD,
-		HDR:           meta.HDR,
-		WebDV:         meta.WebDV,
-		EpisodeTitle:  episodeTitle,
-		VideoCodec:    meta.VideoCodec,
-		VideoEncode:   meta.VideoEncode,
-		DiscType:      meta.DiscType,
-		Region:        meta.Region,
-		DVDSize:       meta.Release.Size,
-		EditionSet:    meta.EditionSet,
-		Cut:           meta.Cut,
-		Presentation:  meta.Presentation,
-		Edition:       meta.Edition,
-		SearchYear:    searchYear,
-		DailyDate:     dailyDate,
-		ManualDate:    manualDate,
-		TMDBDateMatch: meta.TMDBDateMatch,
+		Category:       category,
+		Type:           typeValue,
+		ManualType:     manualType,
+		Title:          title,
+		AltTitle:       altTitle,
+		Year:           year,
+		Resolution:     meta.Release.Resolution,
+		Audio:          meta.Audio,
+		Service:        meta.Service,
+		Season:         strings.TrimSpace(meta.SeasonStr),
+		Episode:        strings.TrimSpace(meta.EpisodeStr),
+		Part:           "",
+		Repack:         meta.Repack,
+		ThreeD:         meta.Is3D,
+		Tag:            meta.Tag,
+		Source:         source,
+		UHD:            meta.UHD,
+		HDR:            meta.HDR,
+		WebDV:          meta.WebDV,
+		Hybrid:         slices.Contains(meta.ReleaseFeatures, api.ReleaseFeatureHybrid),
+		EpisodeTitle:   episodeTitle,
+		VideoCodec:     meta.VideoCodec,
+		VideoEncode:    meta.VideoEncode,
+		DiscType:       meta.DiscType,
+		Region:         meta.Region,
+		DVDSize:        meta.Release.Size,
+		EditionSet:     meta.EditionSet,
+		Cut:            meta.Cut,
+		Presentation:   meta.Presentation,
+		Edition:        meta.Edition,
+		EditionDisplay: api.EditionDisplayText(meta.EditionDisplay),
+		SearchYear:     searchYear,
+		DailyDate:      dailyDate,
+		ManualDate:     manualDate,
+		TMDBDateMatch:  meta.TMDBDateMatch,
 	}
 }
 

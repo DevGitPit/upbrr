@@ -95,3 +95,27 @@ func TestLSTPayloadPreservesCanonicalCut(t *testing.T) {
 		})
 	}
 }
+
+func TestHybridDoesNotEnterEditionMapping(t *testing.T) {
+	for _, cut := range []string{"", "Director's Cut"} {
+		subject := api.UploadSubject{Cut: cut, ReleaseFeatures: []api.ReleaseFeature{api.ReleaseFeatureHybrid}}
+		data := make(map[string]string)
+		additionalPayload(trackers.PreparationInput{Meta: subject}, data)
+		want := ""
+		if cut != "" {
+			want = "2"
+		}
+		if data["edition_id"] != want {
+			t.Fatalf("edition_id=%q want %q", data["edition_id"], want)
+		}
+		failures, err := validationPolicy().Check(t.Context(), api.NewTrackerValidationSubject(subject, "LST"), api.NopLogger{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, failure := range failures {
+			if failure.Rule == "unsupported_edition" {
+				t.Fatal("Hybrid rejected as edition")
+			}
+		}
+	}
+}

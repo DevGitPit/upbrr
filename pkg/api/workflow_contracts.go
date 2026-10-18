@@ -217,6 +217,9 @@ type TrackerDuplicateTarget struct {
 	Pack          bool     `json:"pack"`
 	SizeBytes     int64    `json:"sizeBytes,omitempty"`
 	FileNames     []string `json:"fileNames,omitempty"`
+
+	// ReleaseFeatures retain non-edition annotations without changing edition comparisons.
+	ReleaseFeatures []ReleaseFeature `json:"releaseFeatures,omitempty"`
 }
 
 // TrackerArtifactRequirements are backend-owned tracker artifact requirements.

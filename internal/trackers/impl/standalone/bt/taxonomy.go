@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -281,7 +282,7 @@ func resolveEdition(meta api.UploadSubject) string {
 		return "IMAX"
 	case strings.Contains(edition, "noir"):
 		return "Noir"
-	case strings.Contains(edition, "remaster"):
+	case strings.Contains(edition, "remaster") || slices.Contains(meta.ReleaseFeatures, api.ReleaseFeature4KRemaster) || slices.Contains(meta.ReleaseFeatures, api.ReleaseFeatureRemaster):
 		return "Remastered"
 	default:
 		return ""

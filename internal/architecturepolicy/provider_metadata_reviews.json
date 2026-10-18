@@ -24,8 +24,8 @@
     "sha256": "702004bf21596e48985b7bb79575a581c6206f7f5997691f51624e43e5e09b2e"
   },
   "internal/trackers/impl/azfamily/name.go:applyCinemaZNameDefaults": {
-    "reason": "DVD-encode naming review: current-provider title/year selection, source/identity checks, manual fact/component precedence and independent search names are preserved. Only policy versions and bypass of full-DVD formatting for finalized DVD-source ENCODE changed; callers and provider-value helpers were reviewed together.",
-    "sha256": "6f5176ac810b0f93144922fe6a2d83d9a1437b212124b006ad243f0174bb65df"
+    "reason": "Annotation-display review: CZ/PHD policy versions advance for equivalent formatting of the display replacement role. Provider identity/source guards, Latin-safe title selection, manual title and component precedence, and separate search naming are unchanged. Legacy/display equivalence and manual/full-name regressions cover the changed policy.",
+    "sha256": "9b750038687c63e6e3cc3f0e01c9f2fd3c742228f1c42b324cc402cbb042ad69"
   },
   "internal/trackers/impl/azfamily/name.go:avistaZEnglishTitle": {
     "reason": "Structured-name migration review: current prepared-source/generation provider evidence and manual fact/component precedence are preserved; callers and provider-value helpers were reviewed together.",
@@ -52,8 +52,8 @@
     "sha256": "07f744464332b59a4b1f666cdecdfe9ccc6e99143f051abb5316158cbb45c7cd"
   },
   "internal/trackers/impl/azfamily/name.go:releaseNamePolicy": {
-    "reason": "DVD-encode naming review: current-provider title/year selection, source/identity checks, manual fact/component precedence and independent search names are preserved. Only policy versions and bypass of full-DVD formatting for finalized DVD-source ENCODE changed; callers and provider-value helpers were reviewed together.",
-    "sha256": "785942f157be014f364b48f1950763098300d76bdc6b12e5e3e37c15f6e01611"
+    "reason": "Annotation-display review: CZ/PHD policy versions advance for equivalent formatting of the display replacement role. Provider identity/source guards, Latin-safe title selection, manual title and component precedence, and separate search naming are unchanged. Legacy/display equivalence and manual/full-name regressions cover the changed policy.",
+    "sha256": "528703ded0f74d4a32f22664b16f51df05b19c6ee71524ac1257dda4daace42e"
   },
   "internal/trackers/impl/azfamily/name.go:resolveSearchName": {
     "reason": "Structured-name migration review: current prepared-source/generation provider evidence and manual fact/component precedence are preserved; callers and provider-value helpers were reviewed together.",
@@ -120,8 +120,8 @@
     "sha256": "e6b54f4724bf9a470ed6956ef426001dee841da77798ae2142b04d9118bb1ecf"
   },
   "internal/trackers/impl/azfamily/validation.go:azUploadSubject": {
-    "reason": "Canonical edition-parts review: existing current-provider and manual fact/component precedence is preserved; only finalized cut/edition/presentation/set consumption, component formatting, or its policy version changed. Callers and provider-value helpers reviewed together.",
-    "sha256": "cd7742d81e9e5bcc1a499cfdd4b26eea685b53cec75d86b7ca5ad61d351523f4"
+    "reason": "Annotation-display review: copies canonical ReleaseFeatures and the ordered display-only projection into detached slices. Existing provider snapshot, identity, manual provenance and validation mappings remain unchanged; display text is not semantic evidence.",
+    "sha256": "83d6a29e792e2dabead1abd8c41229b7644a45354876db662f2e8113ebe6eef1"
   },
   "internal/trackers/impl/standalone/ant/definition.go:prepareDescription": {
     "reason": "Description preparation passes the exact prepared subject to the reviewed ANT composer. The explicit ANT logo exclusion also applies to final reviewed descriptions; other reviewed content and metadata/manual precedence remain unchanged.",
@@ -844,8 +844,8 @@
     "sha256": "749756ab3bf9f523ea45560dec99f22eed2f2aeb9855955f765f9bb5983e154a"
   },
   "internal/trackers/impl/standalone/gpw/upload.go:buildFields": {
-    "sha256": "042e57ae1a6b980f4b550662ca1482ce5c47410941a01959f30c92df14abbfcb",
-    "reason": "Director autofill review: explicit director name and ID answers retain precedence. The metadata-selected name receives an IMDb ID only from an unambiguous matching director; unrelated provider IDs are never paired. Other existing finalized/manual payload defaults remain unchanged."
+    "sha256": "359a62e647d14f6d74e4c13cd4070f6962ff2aeef36ae0f514905bff236a1d8b",
+    "reason": "Hybrid separation review: movie_edition_information and remaster_title use the same taxonomy helper to retain finalized Hybrid outside EditionLabel. Group identity, answer precedence, canonical title fallback and provider-backed descriptive helpers are unchanged."
   },
   "internal/trackers/impl/standalone/gpw/upload.go:prepareUploadState": {
     "reason": "Calls reviewed provider consumers; audit this caller together with its provider-value helpers.",
@@ -1096,12 +1096,12 @@
     "sha256": "e62b2547dbb023be8c4bfa8e89aa03e908ef2e830218d56eb631c1d8d0cfd205"
   },
   "internal/trackers/impl/standalone/ptp/taxonomy.go:editionFeatures": {
-    "sha256": "ef51a421e89b5f808369de1872adff03e447e7be77aa0822fe32878ce6a63757",
-    "reason": "PTP edition/feature review: consumes the exact prepared generation; explicit manual-empty distributor provenance suppresses collection fallback and effective commentary false remains authoritative. The pure mapper and its profile, preview, and payload callers were reviewed together; no late provider or name parsing was introduced."
+    "sha256": "f33def9778d7df25690da83164a77209630cc84fc72bf795c0f160a22f19138b",
+    "reason": "Annotation-display review: feature selection remains based on typed prepared facts, with exact generic mastering labels from classified display fragments. Distributor manual-clear precedence, commentary authority and canonical cut/edition mappings remain unchanged. Unknown words stay canonical edition text; exact payload and feature-category regressions cover interleaving."
   },
   "internal/trackers/impl/standalone/ptp/taxonomy.go:resolveRemasterTitle": {
-    "sha256": "eea41458a8a6f6093701274e5b014c9bdcb2bb2af7dd03e620e24b48d92f32ca",
-    "reason": "PTP edition/feature review: consumes the exact prepared generation; explicit manual-empty distributor provenance suppresses collection fallback and effective commentary false remains authoritative. The pure mapper and its profile, preview, and payload callers were reviewed together; no late provider or name parsing was introduced."
+    "sha256": "b4259fb9378cb41a0ccc9379616c24016c962b0c702f647ae701a948d54d8f07",
+    "reason": "Annotation-display review: preserves legacy remaster payload spelling/order from the ordered display projection after already-selected catalogue labels are formatted. Display text is used only for rendering, never to select a feature or provider identity. Canonical feature selection and manual/provider precedence remain owned by editionFeatures."
   },
   "internal/trackers/impl/standalone/ptp/taxonomy.go:resolveTags": {
     "reason": "Explicit manual corrections, including empty values, override this field; automatic provider presence, ordering, and tracker-specific fallback policy remain unchanged.",
@@ -1280,8 +1280,8 @@
     "sha256": "985ac2a8da22171745a30c68ebf0d89fa97deebf6adbc6f160337b93e4407d28"
   },
   "internal/trackers/impl/standalone/validation.go:UploadSubjectForValidation": {
-    "reason": "Clones finalized exact-generation language facts and retained multi-episode membership into the detached validation mapping. Existing explicit metadata values, provenance and manual clears are preserved; no new raw provider fallback is introduced.",
-    "sha256": "e34f0c75444bacb90efe1daa65c5399dda9c19a86e7272d3d655896e4abe8eba"
+    "reason": "Annotation-display review: copies canonical ReleaseFeatures and the ordered display-only projection into detached slices. Existing provider snapshot, identity, manual provenance and validation mappings remain unchanged; display text is not semantic evidence.",
+    "sha256": "023691c82e1f8100d466f63284941359063d54b55982a13bfcee13eb4d764d81"
   },
   "internal/trackers/impl/unit3d/additional_rules.go:Anime": {
     "reason": "provider-only identity, descriptive, transport, media, policy, or episode evidence; no manually-correctable field selector observed",
@@ -1460,12 +1460,12 @@
     "sha256": "776d1d6fcd4fc8c61202322f9b4388220565bfbb8bb64d8343df6a7b87c0db87"
   },
   "internal/trackers/impl/unit3d/sites/rhd/name.go:buildName": {
-    "reason": "Canonical edition-parts review: existing current-provider and manual fact/component precedence is preserved; only finalized cut/edition/presentation/set consumption, component formatting, or its policy version changed. Callers and provider-value helpers reviewed together.",
-    "sha256": "93f84f180f7e7e783d6b97be3ee5b8077fa516a7a6a6378fa2dc4e32521cf625"
+    "reason": "Annotation-display review: renders the ordered display replacement and independent Hybrid marker in their former edition position. Current provider source/identity guard, localized title fallback, manual title/year authority and independent search names remain unchanged.",
+    "sha256": "3863a6db6294719cd7c52795a4a4e500c89c5f5186a4394ca77065132efa956d"
   },
   "internal/trackers/impl/unit3d/sites/rhd/profile.go:Profile": {
-    "reason": "Canonical edition-parts review: existing current-provider and manual fact/component precedence is preserved; only finalized cut/edition/presentation/set consumption, component formatting, or its policy version changed. Callers and provider-value helpers reviewed together.",
-    "sha256": "314ce6aef385da092edbd7e49b0d3520ec1f6125463c24daefa5a2a9372096c6"
+    "reason": "Hybrid separation review: advances only the custom naming policy version to invalidate old names after typed Hybrid preservation. Provider resolution, callback bindings, validation and banned-group policy are unchanged.",
+    "sha256": "32dc6dc8b4c48618ff3e73948337ec8d8cc922bc87d6342104b988445ef694fb"
   },
   "internal/trackers/impl/unit3d/sites/rmc/name.go:applyRMCNameDefaults": {
     "reason": "Structured-name migration review: current prepared-source/generation provider evidence and manual fact/component precedence are preserved; callers and provider-value helpers were reviewed together.",
@@ -1568,8 +1568,8 @@
     "sha256": "315e91b6685a8bbfabd749913abc7d5a55b90773acb9f3cfdd08b2e58c5bf2c3"
   },
   "internal/trackers/impl/unit3d/validation.go:unit3DUploadSubject": {
-    "reason": "Preserves canonical SeasonStr and known source multiplicity in the detached validation mapping. Existing exact-generation provider metadata, explicit values and manual clears remain unchanged; no raw parser/provider fallback is added.",
-    "sha256": "1013c59ec20ce43159542a7556ab040e980f0198d52d0b0237cbd2b902a1e760"
+    "reason": "Annotation-display review: copies canonical ReleaseFeatures and the ordered display-only projection into detached slices. Existing provider snapshot, identity, manual provenance and validation mappings remain unchanged; display text is not semantic evidence.",
+    "sha256": "0631a672653bf72afb4214c9c8e3cfb771c050f4a98ce7cf926124acc15b47ec"
   },
   "internal/trackers/impl/standalone/gpw/questionnaire.go:resolveDirectorFields": {
     "sha256": "606190d4951dc5c1590f3c4181ade66a3babe91f27eda790f93c2a3329147fe1",

@@ -4,6 +4,7 @@
 package ant
 
 import (
+	"slices"
 	"strings"
 
 	"golang.org/x/text/language"
@@ -81,7 +82,8 @@ func resolveFlags(meta api.UploadSubject) []string {
 	flags := make([]string, 0, 12)
 	edition := strings.ToUpper(strings.NewReplacer("'", "", " ", "").Replace(meta.EditionLabel()))
 	for _, candidate := range []string{"Directors", "Extended", "Uncut", "Unrated", "4KRemaster", "IMAX"} {
-		if strings.Contains(edition, strings.ToUpper(candidate)) {
+		if strings.Contains(edition, strings.ToUpper(candidate)) ||
+			candidate == "4KRemaster" && slices.Contains(meta.ReleaseFeatures, api.ReleaseFeature4KRemaster) {
 			flags = append(flags, candidate)
 		}
 	}
