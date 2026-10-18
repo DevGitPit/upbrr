@@ -1087,5 +1087,17 @@ func (m *Module) publishUnknownCollectionActions(ctx context.Context, ownerID st
 	if err != nil {
 		return fmt.Errorf("release workflow read collection recovery effects: %w", err)
 	}
+	if len(effects) == 0 {
+		return nil
+	}
+	state, err := m.repository.Load(ctx, ownerID, workflowID)
+	if err != nil {
+		return fmt.Errorf("release workflow load collection recovery state: %w", err)
+	}
+	// Publication records the current process epoch, so finish restart cleanup
+	// before it can make stale stages and approvals look current.
+	if err := m.recoverAfterRestart(ctx, ownerID, &state); err != nil {
+		return fmt.Errorf("release workflow recover collection state: %w", err)
+	}
 	return m.publishLegacyRecoveryActions(ctx, ownerID, workflowID, effects)
 }

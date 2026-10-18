@@ -275,6 +275,91 @@ func TestImageCollectionRecoverySurvivesStartupBeforeOrAfterActionPublication(t 
 	}
 }
 
+func TestStartupCollectionPublicationRecoversPriorProcessState(t *testing.T) {
+	for _, mode := range []string{"expired input", "owned input", "owned recovery retry"} {
+		for _, published := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/published=%t", mode, published), func(t *testing.T) {
+				ctx := t.Context()
+				clock := &mutableClock{now: time.Now().UTC()}
+				repo := openActiveInputRecoveryRepository(ctx, t)
+				persistent, err := NewPersistentRepository(repo)
+				if err != nil {
+					t.Fatal(err)
+				}
+				module := newActiveInputRecoveryModule(t, persistent, repo, &hashingActiveInputVerifier{}, clock, "current-process")
+				opened, err := module.OpenInput(ctx, testOwnerID, OpenInputRequest{
+					Input:          api.PrepareInput{SourcePath: writeActiveInputRecoverySource(t, "source.mkv", "synthetic source")},
+					IdempotencyKey: "collection-restart-order",
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				authorityCtx := api.WithActiveInputAuthority(ctx, api.ActiveInputAuthority{CoordinatorID: opened.CoordinatorID, Fence: opened.Fence})
+				effect := recordUnknownCollectionEffect(authorityCtx, t, persistent, opened.WorkflowID, "restart-order", clock.Now())
+				if published {
+					if err := module.publishLegacyRecoveryActions(authorityCtx, testOwnerID, opened.WorkflowID, []api.ReleaseWorkflowEffectRecord{effect}); err != nil {
+						t.Fatal(err)
+					}
+				}
+				state, err := persistent.Load(ctx, testOwnerID, opened.WorkflowID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				expected := state.Workflow.Revision
+				state.Workflow.Revision++
+				state.Workflow.Status = api.WorkflowStatusBlocked
+				state.ProcessEpoch = "prior-process"
+				state.Workflow.RequiredActions = append(state.Workflow.RequiredActions, api.RequiredAction{
+					ID:        "obsolete-tracker-approval",
+					Kind:      api.RequiredActionApproveTrackers,
+					Status:    api.RequiredActionStatusPending,
+					Prompt:    "Approve trackers",
+					CreatedAt: clock.Now(),
+				})
+				for i := range state.Workflow.RequiredActions {
+					state.Workflow.RequiredActions[i].WorkflowRevision = state.Workflow.Revision
+				}
+				operationID := api.WorkflowOperationID("interrupted-collection-stage")
+				state.Operations[operationID] = api.WorkflowOperationStatus{
+					ID:         operationID,
+					WorkflowID: opened.WorkflowID,
+					Revision:   state.Workflow.Revision,
+					Operation:  api.OperationKindImageHosting,
+					Status:     api.StageStatusRunning,
+					StartedAt:  clock.Now(),
+				}
+				if err := persistent.Save(authorityCtx, testOwnerID, expected, state); err != nil {
+					t.Fatal(err)
+				}
+				switch mode {
+				case "expired input":
+					if err := module.Shutdown(ctx); err != nil {
+						t.Fatal(err)
+					}
+					clock.now = clock.now.Add(workflowWorkLeaseTTL + time.Second)
+					module = newActiveInputRecoveryModule(t, persistent, repo, &hashingActiveInputVerifier{}, clock, "restarted-process")
+				case "owned recovery retry":
+					module.startupResetPending = true
+				}
+				if err := module.ResetIdleInputOnStartup(ctx); err != nil {
+					t.Fatal(err)
+				}
+				state, err = persistent.Load(ctx, testOwnerID, opened.WorkflowID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if operation := state.Operations[operationID]; operation.Status != api.StageStatusInterrupted || operation.CompletedAt == nil {
+					t.Fatalf("publication skipped restart stage cleanup: %#v", operation)
+				}
+				if len(state.Workflow.RequiredActions) != 1 || state.Workflow.RequiredActions[0].EffectScopeID != effect.ScopeID ||
+					state.Workflow.RequiredActions[0].WorkflowRevision != state.Workflow.Revision || state.ProcessEpoch != module.processEpoch {
+					t.Fatalf("publication skipped obsolete approval cleanup or lost reconciliation: %#v", state.Workflow)
+				}
+			})
+		}
+	}
+}
+
 type failOnceCollectionQuery struct {
 	DurabilityRepository
 	failed bool

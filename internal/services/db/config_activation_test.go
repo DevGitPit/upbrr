@@ -1055,3 +1055,134 @@ func TestStartupPreservesCollectionRecoveryWithoutAllowingSettingsChanges(t *tes
 		t.Fatalf("repeated startup: effects=%d fences=%d err=%v", effects, fences, err)
 	}
 }
+
+func TestStartupCollectionNoOpDoesNotWaitForLeases(t *testing.T) {
+	for _, lease := range []string{"input", "work"} {
+		t.Run(lease, func(t *testing.T) {
+			for _, test := range []struct {
+				name     string
+				status   api.WorkflowEffectStatus
+				kind     api.WorkflowExternalEffectKind
+				scope    string
+				fence    bool
+				started  bool
+				wantBusy bool
+			}{
+				{
+					name:   "retained unknown collection",
+					status: api.WorkflowEffectStatusUnknown,
+					kind:   api.WorkflowExternalEffectImageHosting,
+					scope:  api.ImageCollectionEffectScope("collection-attempt"),
+				},
+				{
+					name:     "started collection",
+					status:   api.WorkflowEffectStatusStarted,
+					kind:     api.WorkflowExternalEffectImageHosting,
+					scope:    api.ImageCollectionEffectScope("collection-attempt"),
+					wantBusy: true,
+				},
+				{
+					name:     "ordinary unknown image",
+					status:   api.WorkflowEffectStatusUnknown,
+					kind:     api.WorkflowExternalEffectImageHosting,
+					scope:    "ordinary-image",
+					wantBusy: true,
+				},
+				{
+					name:     "empty collection attempt",
+					status:   api.WorkflowEffectStatusUnknown,
+					kind:     api.WorkflowExternalEffectImageHosting,
+					scope:    api.ImageCollectionEffectScope(""),
+					wantBusy: true,
+				},
+				{
+					name:     "other effect kind",
+					status:   api.WorkflowEffectStatusUnknown,
+					kind:     api.WorkflowExternalEffectTrackerSubmission,
+					scope:    api.ImageCollectionEffectScope("collection-attempt"),
+					wantBusy: true,
+				},
+				{
+					name:     "unknown collection and started effect",
+					status:   api.WorkflowEffectStatusUnknown,
+					kind:     api.WorkflowExternalEffectImageHosting,
+					scope:    api.ImageCollectionEffectScope("collection-attempt"),
+					started:  true,
+					wantBusy: true,
+				},
+				{
+					name:     "unknown collection and submission fence",
+					status:   api.WorkflowEffectStatusUnknown,
+					kind:     api.WorkflowExternalEffectImageHosting,
+					scope:    api.ImageCollectionEffectScope("collection-attempt"),
+					fence:    true,
+					wantBusy: true,
+				},
+			} {
+				t.Run(test.name, func(t *testing.T) {
+					repo, ctx, binding, record, effect := collectionRecoveryFixture(t)
+					if _, acquired, err := repo.ReserveImageCollection(ctx, binding, record); err != nil || !acquired {
+						t.Fatalf("reserve collection: acquired=%v err=%v", acquired, err)
+					}
+					now := time.Now().UTC()
+					if _, err := repo.db.ExecContext(ctx, `UPDATE release_workflow_effects SET status = ?, kind = ?, scope_id = ? WHERE effect_id = ?`,
+						test.status, test.kind, test.scope, effect.EffectID); err != nil {
+						t.Fatal(err)
+					}
+					if test.started {
+						other := effect
+						other.EffectID, other.ScopeID = "other-effect", "ordinary-image"
+						if _, _, err := repo.BeginReleaseWorkflowEffect(ctx, other); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if lease == "work" {
+						active, err := repo.LoadActiveInput(ctx)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if err := repo.RelinquishActiveInput(ctx, active.CoordinatorID, active.Fence, now); err != nil {
+							t.Fatal(err)
+						}
+						if _, err := repo.db.ExecContext(ctx, `INSERT INTO release_workflow_work (
+							owner_id, workflow_id, operation_id, lease_owner, lease_expires_at, checkpoint_json, updated_at
+						) VALUES (?, ?, ?, ?, ?, ?, ?)`, effect.OwnerID, effect.WorkflowID, effect.OperationID, "live-worker",
+							formatWorkflowStateTime(now.Add(time.Hour)), []byte(`{}`), formatWorkflowStateTime(now)); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if test.fence {
+						if _, err := repo.db.ExecContext(ctx, `INSERT INTO submission_fences (
+							content_version, content_digest, content_scope, content_json, tracker_site,
+							owner_id, workflow_id, operation_id, effect_id, status, started_at, updated_at
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, "1", "synthetic", "file", []byte(`{}`), "TEST",
+							effect.OwnerID, effect.WorkflowID, effect.OperationID, effect.EffectID, api.WorkflowEffectStatusUnknown,
+							formatWorkflowStateTime(now), formatWorkflowStateTime(now)); err != nil {
+							t.Fatal(err)
+						}
+					}
+					effects, fences, err := repo.DiscardUnresolvedWorkflowEffectsOnStartup(t.Context(), now)
+					if effects != 0 || fences != 0 || (test.wantBusy && !errors.Is(err, api.ErrActiveInputBusy)) || (!test.wantBusy && err != nil) {
+						t.Fatalf("startup cleanup: effects=%d fences=%d err=%v, wantBusy=%v", effects, fences, err, test.wantBusy)
+					}
+					if !test.wantBusy {
+						if err := repo.withWriteTx(t.Context(), "test live collection startup activation", func(tx *sql.Tx) error {
+							_, err := requireStartupConfigActivationSafe(t.Context(), tx)
+							return err
+						}); !errors.Is(err, api.ErrActiveInputBusy) {
+							t.Fatalf("startup activation bypassed live worker: %v", err)
+						}
+					}
+					latest, err := loadLatestReleaseWorkflowEffect(ctx, repo.db, effect.OwnerID, effect.WorkflowID, string(test.kind), test.scope)
+					if err != nil || latest.Status != test.status || !latest.UpdatedAt.Equal(effect.UpdatedAt) {
+						t.Fatalf("effect changed: %#v err=%v", latest, err)
+					}
+					retained, err := repo.LoadImageCollection(ctx, binding, record.Fingerprint)
+					if err != nil || retained == nil || retained.AttemptID != record.AttemptID {
+						t.Fatalf("reservation changed: %#v err=%v", retained, err)
+					}
+				})
+			}
+		})
+	}
+}

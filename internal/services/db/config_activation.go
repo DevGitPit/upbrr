@@ -555,6 +555,7 @@ func (r *SQLiteRepository) ConfigActivationSafe(ctx context.Context) (bool, erro
 // after all input and work leases expire. It retains failed effect receipts and
 // removes uncertain submission fences so an interrupted attempt can be retried.
 // Collection effects remain unknown until explicit confirmation releases their reservation.
+// Already-unknown collections alone need no cleanup and do not wait for leases.
 func (r *SQLiteRepository) DiscardUnresolvedWorkflowEffectsOnStartup(ctx context.Context, now time.Time) (int64, int64, error) {
 	if now.IsZero() {
 		return 0, 0, errors.New("db: startup effect discard timestamp is required")
@@ -566,9 +567,10 @@ func (r *SQLiteRepository) DiscardUnresolvedWorkflowEffectsOnStartup(ctx context
 		var unresolved int
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (
 			SELECT 1 FROM release_workflow_effects WHERE status IN ('started', 'unknown')
+				AND NOT (status = 'unknown' AND kind = ? AND scope_id GLOB ?)
 		) OR EXISTS (
 			SELECT 1 FROM submission_fences WHERE status IN ('started', 'unknown')
-		)`).Scan(&unresolved); err != nil {
+		)`, api.WorkflowExternalEffectImageHosting, api.ImageCollectionEffectScope("?*")).Scan(&unresolved); err != nil {
 			return fmt.Errorf("db inspect unresolved startup workflow effects: %w", err)
 		}
 		if unresolved == 0 {
