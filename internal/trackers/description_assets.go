@@ -292,6 +292,17 @@ func resolveDescriptionAssets(
 			})
 		})
 		description = strings.TrimSpace(strings.Join([]string{description, hdrBlock}, "\n\n"))
+		if meta.ExactMedia.CollectionHost == "slowpics" && len(meta.ExactMedia.ComparisonSets) > 0 {
+			comparisonBlock, collectionErr := exactComparisonCollectionBlock(meta.ExactMedia)
+			if collectionErr != nil {
+				return DescriptionAssets{}, collectionErr
+			}
+			description = descriptiontext.MapOutsideLiteralBlocks(
+				description,
+				func(value string) string { return strings.ReplaceAll(value, comparisonBlock, "") },
+			)
+			description = strings.TrimSpace(strings.Join([]string{description, comparisonBlock}, "\n\n"))
+		}
 	}
 	hasDescription := strings.TrimSpace(description) != ""
 	return DescriptionAssets{
@@ -314,6 +325,17 @@ func exactAudioDescriptionBlock(tracker string, exact *api.ExactMediaAssets) (st
 		return "", nil
 	}
 	images := make([]string, 0)
+	if exact.CollectionHost == "slowpics" {
+		for _, collection := range exact.Collections {
+			if collection.Purpose == api.ScreenshotPurposeAudioAnalysis {
+				link, err := imageCollectionDescriptionLink(collection)
+				if err != nil {
+					return "", err
+				}
+				images = append(images, link)
+			}
+		}
+	}
 	stats := make([]string, 0)
 	selectedHost := strings.TrimSpace(exact.AudioUploadHosts[strings.ToUpper(strings.TrimSpace(tracker))])
 	hostUnavailable := len(exact.AudioTracks) > 0 && len(exact.AudioUploadHosts) > 0 && selectedHost == ""
@@ -324,6 +346,9 @@ func exactAudioDescriptionBlock(tracker string, exact *api.ExactMediaAssets) (st
 		label := fmt.Sprintf("Audio track %d", track.Ordinal)
 		labeled := false
 		for _, image := range track.Images {
+			if exact.CollectionHost == "slowpics" {
+				continue
+			}
 			if hostUnavailable {
 				continue
 			}

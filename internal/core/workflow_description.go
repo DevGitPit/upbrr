@@ -19,7 +19,7 @@ import (
 )
 
 // workflowDescriptionRendererVersion invalidates generated output when composition changes.
-const workflowDescriptionRendererVersion = "description-renderer-v1"
+const workflowDescriptionRendererVersion = "description-renderer-v2"
 
 type workflowDescriptionSubjectResolver interface {
 	ResolveUploadSubject(context.Context, api.UploadSubjectInput) (api.UploadSubject, error)
@@ -53,6 +53,7 @@ func (b workflowDescriptionBuilder) Fingerprints(
 	if err != nil {
 		return "", "", err
 	}
+	exactMedia.CollectionHost = b.config.ImageHosting.AnalysisHost
 	return workflowDescriptionFingerprints(release, projections, media, instructions, subject, exactMedia)
 }
 
@@ -132,6 +133,7 @@ func (b workflowDescriptionBuilder) Build(
 	if err != nil {
 		return api.DescriptionSet{}, err
 	}
+	exactMedia.CollectionHost = b.config.ImageHosting.AnalysisHost
 	inputFingerprint, templateFingerprint, err := workflowDescriptionFingerprints(
 		release,
 		projections,
@@ -155,6 +157,9 @@ func (b workflowDescriptionBuilder) Build(
 			TemplateFingerprint: templateFingerprint,
 			Status:              api.StageStatusSkipped,
 		}, nil
+	}
+	if err := b.uploadComparisonCollections(ctx, subject, trackerNames); err != nil {
+		return api.DescriptionSet{}, err
 	}
 	if err := b.uploadAudioDescriptionImages(ctx, subject, trackerNames); err != nil {
 		return api.DescriptionSet{}, fmt.Errorf("workflow descriptions: upload audio analysis images: %w", err)
@@ -297,6 +302,9 @@ func (b workflowDescriptionBuilder) Build(
 func (b workflowDescriptionBuilder) uploadAudioDescriptionImages(ctx context.Context, subject api.UploadSubject, trackerNames []string) error {
 	if subject.ExactMedia == nil {
 		return nil
+	}
+	if subject.ExactMedia.CollectionHost == "slowpics" {
+		return b.uploadAudioCollections(ctx, subject, trackerNames)
 	}
 	images := make([]api.ScreenshotImage, 0)
 	for _, track := range subject.ExactMedia.AudioTracks {
@@ -515,6 +523,7 @@ func resolveWorkflowExactMedia(
 				if err != nil {
 					return nil, fmt.Errorf("workflow exact media: audio analysis image: %w", err)
 				}
+				entry.ImageLabels = append(entry.ImageLabels, api.CollectionLabel(string(artifact.Variant), "Audio plot"))
 				entry.Images = append(entry.Images, api.ScreenshotImage{
 					Path:    pathValue,
 					Purpose: api.ScreenshotPurposeAudioAnalysis,

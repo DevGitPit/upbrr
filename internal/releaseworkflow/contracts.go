@@ -46,9 +46,13 @@ type MediaPreviewContent struct {
 // StagedMediaContent is owner-scoped private upload content. Name and bytes
 // never enter public workflow snapshots.
 type StagedMediaContent struct {
-	Name        string
-	Bytes       []byte
-	ContentType string
+	ComparisonGroup       string
+	ComparisonCount       int
+	ComparisonLabel       string
+	ComparisonMemberLabel string
+	Name                  string
+	Bytes                 []byte
+	ContentType           string
 }
 
 // StagedMediaAttachment binds private staged bytes to one requested artifact shape.

@@ -39,3 +39,45 @@ Imported tracker images still follow the destination's host policy. upbrr resolv
 ## Verify the change
 
 Save, open **Upload Images**, select test images, and inspect the planned host per tracker before uploading. A successful image upload does not prove every tracker accepts that host; verify the generated description or dry-run preview too.
+
+## Use slow.pics collection links for analysis
+
+Choose **Comparison and analysis host → slow.pics collection links**, or set
+`image_hosting.analysis_host: slowpics` in the shared CLI/server configuration.
+Leaving it empty preserves ordinary hosting. Do not put `slowpics` in Host 1–6
+or a tracker's image-host override: it cannot host final screenshots, previews,
+or DVD menus.
+
+Collection mode supports existing comparison, HDR-analysis and audio-analysis
+images. Each top-level `--comparison` file or folder becomes one flat set; folders
+retain their sorted accepted-file order and `--comparison-primary` still reorders
+inputs. It does not align source frames or pair files across folders. All members
+of a comparison set must remain selected. Reattaching a complete explicit group
+replaces that group, including after a restart, and preserves unrelated groups.
+Partial group attachments are rejected. Older flat attachments keep their
+ordinary route; reattach them to retain set boundaries. PNG bytes are required;
+JPEG and WebP are rejected before creating a remote collection.
+
+Descriptions contain one labeled collection link per completed set, never
+embedded slow.pics images or individual-image links. Existing HDR/audio producers
+supply the images and categories; audio statistics remain text. Saved final
+edited descriptions are preserved. Explicit image-upload skip does not create
+collections and can reuse only a complete compatible cached set.
+
+Tracker acceptance rules still apply. If a selected tracker disallows slow.pics,
+the operation stops with a configuration conflict; clear the analysis-host
+preference to use ordinary hosts. Grouped comparisons in collection mode do not
+fall back to ordinary image uploads.
+
+Uploads use a new anonymous session and request `public=false` and
+`optimizeImages=false`. These parameters are not guarantees of private,
+access-controlled or lossless hosting. Live anonymous availability, single-image
+acceptance, visibility, retention and service limits have not been verified.
+Local safety limits are 100 images, 20 MiB per PNG and 100 MiB per collection.
+
+A collection link is retained only after every member succeeds. If creation or
+member upload has an uncertain outcome, automatic recreation is blocked across
+restarts, including an unchanged set in a new preparation generation. Local
+images are preserved. There is no automatic remote cleanup or account-login
+support; verify an uncertain upload before arranging recovery. Cloudflare
+blocking is reported without bypassing it.

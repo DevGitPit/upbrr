@@ -528,11 +528,18 @@ func (m *Module) ensureCompositeUploadMediaInputs(
 		if stageErr != nil {
 			return stageErr
 		}
+		if kind == api.MediaArtifactDVDMenu {
+			content.ComparisonGroup, content.ComparisonLabel, content.ComparisonMemberLabel = "", "", ""
+		}
 		attachments = append(attachments, api.MediaAttachment{
-			Resource: resource,
-			Kind:     kind,
-			Purpose:  purpose,
-			Order:    len(attachments),
+			ComparisonGroup:       content.ComparisonGroup,
+			ComparisonCount:       content.ComparisonCount,
+			ComparisonLabel:       content.ComparisonLabel,
+			ComparisonMemberLabel: content.ComparisonMemberLabel,
+			Resource:              resource,
+			Kind:                  kind,
+			Purpose:               purpose,
+			Order:                 len(attachments),
 		})
 		return nil
 	}

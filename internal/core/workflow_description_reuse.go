@@ -70,7 +70,7 @@ func (b workflowDescriptionBuilder) RestoreCompatibleDescriptions(
 	if err := ctx.Err(); err != nil {
 		return api.DescriptionSet{}, instructions, fmt.Errorf("workflow reusable descriptions: %w", err)
 	}
-	if b.reuse == nil || len(instructions.Overrides) > 0 {
+	if b.reuse == nil || len(instructions.Overrides) > 0 || b.config.ImageHosting.AnalysisHost != "" {
 		return api.DescriptionSet{}, instructions, nil
 	}
 	sourcePath, compatibilityFingerprint, available, err := b.reusableDescriptionInputs(
