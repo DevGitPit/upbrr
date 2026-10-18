@@ -979,13 +979,17 @@ func workflowPreflightFixtures(
 }
 
 type workflowQuestionnaireResourceDefinition struct {
+	expectedName string
 	workflowPreparedResourceDefinition
 }
 
-func (workflowQuestionnaireResourceDefinition) ValidationPolicy() trackerspkg.ValidationPolicyBinding {
+func (definition workflowQuestionnaireResourceDefinition) ValidationPolicy() trackerspkg.ValidationPolicyBinding {
 	return trackerspkg.ValidationPolicyBinding{
 		ID: "resource-questionnaire-test-v1",
 		Check: func(_ context.Context, subject api.TrackerValidationSubject, _ api.Logger) ([]api.RuleFailure, error) {
+			if definition.expectedName != "" && subject.FinalizedUploadName != definition.expectedName {
+				return []api.RuleFailure{trackerspkg.NewQuestionnaireRuleFailure("reviewed_name", "finalized name changed")}, nil
+			}
 			if !subject.MediaInfoTextReady {
 				return []api.RuleFailure{trackerspkg.NewRuleFailure("required_media", "prepared media is required", api.RuleDispositionStrict)}, nil
 			}
@@ -1072,7 +1076,7 @@ func TestWorkflowPreflightPreservesUnresolvedQuestionnaire(t *testing.T) {
 
 func TestWorkflowPreflightResourceRevalidationUsesExactQuestionnaireAnswers(t *testing.T) {
 	registry := trackerspkg.NewRegistry()
-	if err := registry.Register(workflowQuestionnaireResourceDefinition{}); err != nil {
+	if err := registry.Register(workflowQuestionnaireResourceDefinition{expectedName: "reviewed-name"}); err != nil {
 		t.Fatal(err)
 	}
 	mediaInfo := filepath.Join(t.TempDir(), "mediainfo.txt")
@@ -1098,6 +1102,7 @@ func TestWorkflowPreflightResourceRevalidationUsesExactQuestionnaireAnswers(t *t
 			resource := api.NewTrackerValidationSubject(subject, "RESOURCE").PreparedResourceFingerprint
 			initial := api.TrackerReleaseProjectionSet{Projections: []api.TrackerReleaseProjection{{
 				TrackerID:                   "RESOURCE",
+				UploadReleaseName:           "reviewed-name",
 				QuestionnaireAnswers:        test.answers,
 				Readiness:                   api.ReadinessStatusReady,
 				DupeReady:                   true,

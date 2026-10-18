@@ -381,6 +381,9 @@ func (r *Registry) ProjectRelease(
 	if descriptor.DupePolicy != nil && descriptor.DupePolicy.TargetReleaseOrigin != nil {
 		projection.DuplicateTarget.ReleaseOrigin = strings.TrimSpace(descriptor.DupePolicy.TargetReleaseOrigin(input.Meta, input.Runtime.Internal))
 	}
+	if descriptor.DupePolicy != nil && descriptor.DupePolicy.TargetEvidence != nil {
+		projection.DuplicateTarget.Evidence, projection.DuplicateTarget.Comparisons = descriptor.DupePolicy.TargetEvidence(input.Meta)
+	}
 	if descriptor.DupePolicy != nil && descriptor.DupePolicy.TargetSlot != nil {
 		projection.DuplicateTarget.TrackerSlot = descriptor.DupePolicy.TargetSlot(input.Meta)
 	}
@@ -481,6 +484,7 @@ func (r *Registry) ProjectRelease(
 	}
 	if failure == nil {
 		validationSubject := api.NewTrackerValidationSubject(input.Meta, input.Tracker)
+		validationSubject.FinalizedUploadName = projection.UploadReleaseName
 		if provider, ok := descriptor.Definition.(TitleSearchPolicyProvider); ok {
 			policy := provider.TitleSearchPolicy()
 			evidence := validationSubject.TitleSearchEvidence

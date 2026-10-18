@@ -4,7 +4,11 @@
 package lst
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/autobrr/upbrr/internal/trackers/impl/unit3d"
+	"github.com/autobrr/upbrr/pkg/api"
 
 	"github.com/autobrr/upbrr/internal/mediafacts"
 	"github.com/autobrr/upbrr/internal/trackers"
@@ -80,4 +84,27 @@ func editionID(edition string) (string, bool) {
 		"other":               "0",
 	}[normalized]
 	return value, ok
+}
+
+func submissionRequirements(req trackers.PreparationInput) (unit3d.SubmissionRequirements, error) {
+	subject := api.NewTrackerValidationSubject(req.Meta, "LST")
+	if req.Projection != nil {
+		subject.FinalizedUploadName = req.Projection.UploadReleaseName
+	}
+	if failures := exceptionValidationFailures(
+		subject,
+	); len(failures) > 0 &&
+		api.NormalizeWorkflowExecutionMode(req.ExecutionMode) != api.WorkflowExecutionModeDebug {
+		return unit3d.SubmissionRequirements{}, fmt.Errorf("LST: %s", failures[0].Reason)
+	}
+	requirements := unit3d.SubmissionRequirements{DescriptionAppendix: requiredAssetDescription(subject)}
+	if containerException(subject) != "" {
+		requirements.ForceModeration = true
+		requirements.DescriptionAppendix = strings.TrimSpace(
+			requirements.DescriptionAppendix + "\n\n" + exceptionDescriptionAppendix(
+				subject.QuestionnaireAnswers[exceptionQuestionKey(subject, "exception_note")],
+			),
+		)
+	}
+	return requirements, nil
 }

@@ -240,6 +240,7 @@ describe("DupeCheckPage", () => {
                 matches: [
                   {
                     id: "episode",
+                    evidenceFingerprint: "synthetic-current-candidate",
                     name: "Example.Show.S01E02.1080p.WEB-DL-GRP",
                     relation: "manual_review",
                     reasons: [{ code: "pack_audio_languages_unverified", message: warning }],
@@ -263,6 +264,9 @@ describe("DupeCheckPage", () => {
       ["SP"],
     );
     expect(screen.getByText(warning)).toBeInTheDocument();
+    expect(
+      screen.getByText("Evidence reference: episode / synthetic-current-candidate"),
+    ).toBeInTheDocument();
     expect(screen.getByText("manual review")).toBeInTheDocument();
     expect(screen.queryByText("proposed trumps")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "Acknowledge dupe risk for SP" }));

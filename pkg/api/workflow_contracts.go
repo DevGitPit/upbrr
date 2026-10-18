@@ -193,6 +193,9 @@ type TrackerDuplicateCriteria struct {
 // TrackerDuplicateTarget is the projection-bound proposed release used only
 // for local duplicate policy evaluation.
 type TrackerDuplicateTarget struct {
+	Evidence    DupeReleaseEvidence      `json:"evidence"`
+	Comparisons []DupeComparisonEvidence `json:"comparisons,omitempty"`
+
 	// TrackerSlot is opaque native slot evidence resolved from this prepared generation.
 	TrackerSlot   string   `json:"trackerSlot,omitempty"`
 	Names         []string `json:"names,omitempty"`
@@ -423,35 +426,36 @@ const (
 
 // DupeMatchProjection is sanitized duplicate evidence safe for public clients.
 type DupeMatchProjection struct {
-	ID             string            `json:"id,omitempty"`
-	Name           string            `json:"name"`
-	Link           string            `json:"link,omitempty"`
-	SizeBytes      int64             `json:"sizeBytes,omitempty"`
-	Flags          []string          `json:"flags,omitempty"`
-	Reason         string            `json:"reason,omitempty"`
-	Relation       DupeRelation      `json:"relation,omitempty"`
-	Reasons        []DupeReason      `json:"reasons,omitempty"`
-	HDR            HDRFacts          `json:"hdr"`
-	Category       string            `json:"category,omitempty"`
-	Type           string            `json:"type,omitempty"`
-	Resolution     string            `json:"resolution,omitempty"`
-	Source         string            `json:"source,omitempty"`
-	Codec          string            `json:"codec,omitempty"`
-	Container      string            `json:"container,omitempty"`
-	Provider       string            `json:"provider,omitempty"`
-	Group          string            `json:"group,omitempty"`
-	ReleaseOrigin  string            `json:"releaseOrigin,omitempty"`
-	Edition        string            `json:"edition,omitempty"`
-	Region         string            `json:"region,omitempty"`
-	ThreeD         string            `json:"threeD,omitempty"`
-	Repack         string            `json:"repack,omitempty"`
-	Season         int               `json:"season,omitempty"`
-	Episode        int               `json:"episode,omitempty"`
-	Date           string            `json:"date,omitempty"`
-	Pack           bool              `json:"pack"`
-	Internal       bool              `json:"internal"`
-	Trumpable      bool              `json:"trumpable"`
-	EvidenceStatus HDREvidenceStatus `json:"evidenceStatus,omitempty"`
+	EvidenceFingerprint WorkflowFingerprint `json:"evidenceFingerprint,omitempty"`
+	ID                  string              `json:"id,omitempty"`
+	Name                string              `json:"name"`
+	Link                string              `json:"link,omitempty"`
+	SizeBytes           int64               `json:"sizeBytes,omitempty"`
+	Flags               []string            `json:"flags,omitempty"`
+	Reason              string              `json:"reason,omitempty"`
+	Relation            DupeRelation        `json:"relation,omitempty"`
+	Reasons             []DupeReason        `json:"reasons,omitempty"`
+	HDR                 HDRFacts            `json:"hdr"`
+	Category            string              `json:"category,omitempty"`
+	Type                string              `json:"type,omitempty"`
+	Resolution          string              `json:"resolution,omitempty"`
+	Source              string              `json:"source,omitempty"`
+	Codec               string              `json:"codec,omitempty"`
+	Container           string              `json:"container,omitempty"`
+	Provider            string              `json:"provider,omitempty"`
+	Group               string              `json:"group,omitempty"`
+	ReleaseOrigin       string              `json:"releaseOrigin,omitempty"`
+	Edition             string              `json:"edition,omitempty"`
+	Region              string              `json:"region,omitempty"`
+	ThreeD              string              `json:"threeD,omitempty"`
+	Repack              string              `json:"repack,omitempty"`
+	Season              int                 `json:"season,omitempty"`
+	Episode             int                 `json:"episode,omitempty"`
+	Date                string              `json:"date,omitempty"`
+	Pack                bool                `json:"pack"`
+	Internal            bool                `json:"internal"`
+	Trumpable           bool                `json:"trumpable"`
+	EvidenceStatus      HDREvidenceStatus   `json:"evidenceStatus,omitempty"`
 }
 
 // TrackerDupeAssessment is one retained projection-bound duplicate result.

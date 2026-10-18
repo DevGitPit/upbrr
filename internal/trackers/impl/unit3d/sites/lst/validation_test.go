@@ -95,8 +95,9 @@ func TestRulesRequireEncodeSettings(t *testing.T) {
 }
 
 func lstValidationSubject() api.TrackerValidationSubject {
-	return api.TrackerValidationSubject{
+	subject := api.TrackerValidationSubject{
 		Tracker:       "LST",
+		AnimeKnown:    true,
 		LanguageFacts: lstTestLanguageFacts("English", []string{"English"}, []string{"English"}),
 		Type:          "WEBDL",
 		Container:     "mkv",
@@ -106,6 +107,13 @@ func lstValidationSubject() api.TrackerValidationSubject {
 			MediaFileCount: 1,
 		},
 		AssetFacts: api.AssetFacts{
+			Screenshots: api.AssetEvidence{
+				Status:               api.MetadataEvidenceStatusComplete,
+				Ready:                true,
+				Count:                3,
+				InspectedFormatCount: 3,
+				LosslessCount:        3,
+			},
 			Status: api.MetadataEvidenceStatusComplete,
 			MediaInfoText: api.AssetEvidence{
 				Status: api.MetadataEvidenceStatusComplete,
@@ -119,6 +127,14 @@ func lstValidationSubject() api.TrackerValidationSubject {
 			},
 		},
 	}
+	subject.QuestionnaireAnswers = map[string]string{assetQuestionKey(subject, "screenshot_preservation"): "lossless_preserved"}
+	for _, field := range presentationReviewQuestions(subject) {
+		subject.QuestionnaireAnswers[field.Key] = "reviewed_correct"
+	}
+	for _, field := range sourceReviewQuestions(subject) {
+		subject.QuestionnaireAnswers[field.Key] = field.Options[1]
+	}
+	return subject
 }
 
 func requireLSTValidationFailure(
@@ -173,6 +189,7 @@ func lstTestLanguageFacts(original string, programme, subtitles []string) api.La
 			ID:               "audio-" + strconv.Itoa(index),
 			Kind:             api.MediaTrackAudio,
 			Role:             api.AudioRoleProgramme,
+			Title:            "Programme audio",
 			Languages:        []string{language},
 			Codec:            "AC-3",
 			Default:          index == 0,
@@ -218,10 +235,12 @@ func TestLSTLanguageDefaultAndTitleEvidenceBoundaries(t *testing.T) {
 	requireLSTValidationFailure(t, failures, "language_subtitles_search", api.RuleDispositionWaivable, api.MetadataEvidenceStatusComplete)
 	subject.Anime = true
 	subject.LanguageFacts.Tracks[0].Default = false
-	requireLSTValidationFailure(t, languageAssessment(subject), "language_default_audio", api.RuleDispositionStrict, api.MetadataEvidenceStatusComplete)
+	requireLSTValidationFailure(t, languageAssessment(subject), "language_default_audio", api.RuleDispositionAdvisory, api.MetadataEvidenceStatusComplete)
 	subject.TitleSearchEvidence.Status = api.MetadataEvidenceStatusPartial
 	subject.TitleSearchEvidence.TorrentCount = 1
 	subject.TitleSearchEvidence.ResultFingerprint = "positive-partial"
+	requireLSTValidationFailure(t, languageAssessment(subject), "language_subtitles_search", api.RuleDispositionStrict, api.MetadataEvidenceStatusPartial)
+	subject.TitleSearchEvidence.EnglishSubtitleTorrentCount = 1
 	requireLSTValidationFailure(t, languageAssessment(subject), "language_subtitles_search", api.RuleDispositionStrict, api.MetadataEvidenceStatusComplete)
 	subject.Type = "DISC"
 	if failures := languageAssessment(subject); len(failures) != 0 {

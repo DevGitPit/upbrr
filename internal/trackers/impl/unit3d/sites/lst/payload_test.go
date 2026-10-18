@@ -90,12 +90,13 @@ func TestLSTEditionUploadPreservesNameAndOmitsUnmappedID(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			screens := lstDescriptionScreenshots(&meta)
 			input := trackers.PreparationInput{
 				Intent:        trackers.PreparationIntentUpload,
 				Tracker:       "LST",
 				TrackerConfig: config.TrackerConfig{APIKey: "test-key"},
 				Meta:          meta,
-				Assets:        &trackers.DescriptionAssets{Description: "description", Final: true},
+				Assets:        &trackers.DescriptionAssets{Description: "description\n" + screens, Final: true},
 			}
 			wantName := meta.ReleaseName
 			if test.requestedName != "" {

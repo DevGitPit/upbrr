@@ -1278,6 +1278,10 @@ render select, text, and comma-separated
 multiselect answers. Multiselect option labels must not contain commas. Accepted values travel in
 the exact projection and are reused during payload preparation. Keep canonical fact corrections
 in Input rather than mutating media facts from a tracker answer.
+Evidence-backed site policies may require source- and generation-bound review answers. Keep
+reviewed evidence distinct from inspected facts, invalidate answers when their relevant evidence
+changes, and preserve unresolved states. Typed submission requirements are finalized after family
+defaults; validate final descriptions after overrides so preview and submission share one result.
 
 Keep speculative new-group metadata out of the normal question panel. PTP and GPW retain those
 fields in their private accepted-answer schemas for CLI staging. If existing upload preparation
@@ -1296,7 +1300,10 @@ incomplete answer retains only a private reuse baseline, with no current duplica
 authority. Rebinding never extends duplicate freshness. Canonical prepared-release contract versions do not change for
 tracker-only questionnaire semantics; version the tracker projector instead.
 
-Non-disc TV-pack preparation uses the selected primary video's MediaInfo report. Passive pack
+By default, non-disc TV-pack preparation uses the selected primary video's MediaInfo report. A typed
+metadata requirement may request per-resource inspection for an explicit site policy; preserve
+resource identity and incomplete coverage. The following passive guidance defaults do not override
+evidence-backed site requirements. Passive pack
 consistency guidance must not request all-file collection, block on missing per-file reports,
 or ask users to establish source variation. A primary report cannot prove pack-wide consistency.
 Track-order recommendations use explicit measured container stream order, never MediaInfo document
@@ -1313,8 +1320,9 @@ programme-language gate. Keep canonical language statuses and `TrackCoverageComp
 they still describe collection-wide evidence and protect naming, source binding and independent
 requirements. Do not rewrite language facts to bypass coverage; questionnaire keys use those facts.
 
-Source-history, retention, provenance, quality and hypothetical subtitle concerns are passive
-advisories, not questionnaires or unresolved answer gates. Keep unknown facts unknown; warnings
+Without an explicit evidence-backed site requirement, source-history, retention, provenance,
+quality and hypothetical subtitle concerns are passive advisories, not questionnaires or unresolved
+answer gates. Keep unknown facts unknown; warnings
 must not assert source compliance or grant staff permission, replacement qualification, or an
 exception to independent measured constraints. Use inspected languages, titles, default/forced
 flags and container order before asking for genuinely missing upload input. Use an advisory

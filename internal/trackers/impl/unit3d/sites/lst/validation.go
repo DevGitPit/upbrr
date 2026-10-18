@@ -15,13 +15,18 @@ import (
 
 func validationPolicy() trackers.ValidationPolicyBinding {
 	return trackers.ValidationPolicyBinding{
-		ID: "unit3d-lst-payload-v10",
+		ID: "unit3d-lst-payload-v11",
 		Check: func(ctx context.Context, subject api.TrackerValidationSubject, _ api.Logger) ([]api.RuleFailure, error) {
 			if err := ctx.Err(); err != nil {
 				return nil, fmt.Errorf("context canceled: %w", err)
 			}
 			failures := lstDeterministicFailures(subject)
-			failures = append(failures, encodeAudioGuidance(subject)...)
+			failures = append(failures, presentationReviewFailures(subject)...)
+			failures = append(failures, audioTierFailures(subject)...)
+			failures = append(failures, exceptionValidationFailures(subject)...)
+			failures = append(failures, assetReviewFailures(subject)...)
+			failures = append(failures, sourceValidationFailures(subject)...)
+			failures = append(failures, discReviewFailures(subject)...)
 			return failures, nil
 		},
 	}

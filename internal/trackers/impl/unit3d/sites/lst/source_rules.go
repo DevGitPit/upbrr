@@ -83,17 +83,8 @@ func audioDefects(subject api.TrackerValidationSubject) []audioDefect {
 }
 
 func sourceLanguageFailures(subject api.TrackerValidationSubject) []api.RuleFailure {
-	var failures []api.RuleFailure
-	for _, track := range subject.LanguageFacts.Tracks {
-		if track.Kind != api.MediaTrackAudio || track.Role != api.AudioRoleAlternateMix {
-			continue
-		}
-		failure := trackers.LanguageRuleFailure(subject, "alternate_mix",
-			"alternate mix "+track.ID+" should be an additional original mix or unique remix; source uniqueness has not been verified",
-			trackers.LanguageAdvisory)
-		failure.EvidenceStatus = api.MetadataEvidenceStatusPartial
-		failures = append(failures, failure)
-	}
+	failures := alternateMixFailures(subject)
+	failures = append(failures, remuxSubtitleFailures(subject)...)
 	if needsSubtitlePresentation(subject) {
 		reason := "English subtitle presentation and coverage have not been verified for every programme resource; external subtitles remain subject to an embedded-subtitle improvement"
 		if hardcodedEnglishSubtitles(subject) {
@@ -174,10 +165,10 @@ func compatibilityMix(subject api.TrackerValidationSubject, track api.MediaTrack
 }
 
 // Compatibility checks preserve measured codec and per-mix requirements.
-// Source provenance and relative quality remain unverified advisory guidance.
+// Required source provenance is reviewed independently of comparative quality.
 func compatibilityFailures(subject api.TrackerValidationSubject) []api.RuleFailure {
 	failures, _ := compatibilityAssessment(subject)
-	return failures
+	return append(failures, compatibilitySourceFailures(subject)...)
 }
 
 func compatibilityAssessment(subject api.TrackerValidationSubject) ([]api.RuleFailure, bool) {
@@ -246,7 +237,7 @@ func compatibilityAssessment(subject api.TrackerValidationSubject) ([]api.RuleFa
 		failure := trackers.LanguageRuleFailure(
 			subject,
 			"compatibility_source",
-			"compatibility track "+track.ID+" should be the matching DD core or a WEB DD/DD+/DD+ Atmos substitute; a demonstrably inferior WEB substitute is trumpable. Source provenance and relative quality have not been verified",
+			"compatibility track "+track.ID+" retains comparative-quality review: a demonstrably superior matching disc-derived companion can justify replacement; relative quality has not been verified",
 			trackers.LanguageAdvisory,
 		)
 		failure.EvidenceStatus = api.MetadataEvidenceStatusPartial
@@ -299,4 +290,58 @@ func compatibilityAssessment(subject api.TrackerValidationSubject) ([]api.RuleFa
 	}
 	review := facts.AudioStatus == api.MetadataEvidenceStatusComplete && trackers.ReviewCompatibilityAssignments(failures, required, companions, false)
 	return failures, review
+}
+
+func compatibilitySourceQuestions(subject api.TrackerValidationSubject) []api.TrackerQuestionnaireField {
+	if trackers.IsFullDiscUpload(subject.DiscType, subject.Type) {
+		return nil
+	}
+	var fields []api.TrackerQuestionnaireField
+	for _, track := range subject.LanguageFacts.Tracks {
+		if track.Kind != api.MediaTrackAudio || track.ID == "" || (!standaloneCompatibilityAudio(track) && track.Role != api.AudioRoleCompatibility) ||
+			!trackers.DolbyCompatibilityCodec(track.Codec) && !strings.EqualFold(track.Codec, "DD+ Atmos") {
+			continue
+		}
+		candidates := compatibilityMixes(subject.LanguageFacts, track)
+		mix := compatibilityMix(subject, track, candidates)
+		if !slices.ContainsFunc(candidates, func(candidate api.MediaTrackFacts) bool { return candidate.ID == mix && candidate.Codec != "" }) {
+			continue
+		}
+		key := trackers.LanguageQuestionKey(subject, "compatibility_origin_"+track.ID+"_"+mix)
+		options := []string{"unresolved", "matching_web_source"}
+		if slices.Contains([]string{"DD", "AC-3", "AC3"}, strings.ToUpper(strings.TrimSpace(track.Codec))) {
+			options = append(options, "matching_disc_core")
+		}
+		options = append(options, "other_source")
+		value := subject.QuestionnaireAnswers[key]
+		fields = append(fields, api.TrackerQuestionnaireField{
+			Key:         key,
+			Label:       "Compatibility source for resource " + track.ResourceID + ", track " + track.ID + ", mix " + mix,
+			Kind:        "select",
+			Options:     options,
+			Required:    true,
+			Value:       value,
+			Help:        "Verify this exact companion is the matching disc DD core or a matching WEB-sourced DD/DD+/DD+ Atmos substitute. Codec and language matching alone do not establish source provenance.",
+			NeedsReview: value == "" || value == "unresolved" || value == "other_source",
+		})
+	}
+	return fields
+}
+
+func compatibilitySourceFailures(subject api.TrackerValidationSubject) []api.RuleFailure {
+	var failures []api.RuleFailure
+	for _, field := range compatibilitySourceQuestions(subject) {
+		value := subject.QuestionnaireAnswers[field.Key]
+		if value != "unresolved" && value != "other_source" && slices.Contains(field.Options, value) {
+			continue
+		}
+		outcome := trackers.LanguageUnresolved
+		if value == "other_source" {
+			outcome = trackers.LanguageProhibited
+		}
+		failure := trackers.LanguageRuleFailure(subject, "compatibility_origin", field.Label+": verify permitted source provenance", outcome)
+		failure.QuestionnaireInput = true
+		failures = append(failures, failure)
+	}
+	return failures
 }

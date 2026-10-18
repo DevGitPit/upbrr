@@ -306,6 +306,7 @@ func mapCollectedFacts(meta preparationstate.State) CollectedFacts {
 			Region:                               meta.Region,
 			VideoCodec:                           meta.VideoCodec,
 			VideoEncode:                          meta.VideoEncode,
+			VideoEncoder:                         meta.VideoEncoder,
 			HasEncodeSettings:                    meta.HasEncodeSettings,
 			BitDepth:                             meta.BitDepth,
 			ReleaseFeatures:                      append([]api.ReleaseFeature(nil), meta.ReleaseFeatures...),
@@ -321,6 +322,8 @@ func mapCollectedFacts(meta preparationstate.State) CollectedFacts {
 			ServiceLongName:                      meta.ServiceLongName,
 			MediaInfoUniqueID:                    meta.MediaInfoUniqueID,
 			Anime:                                meta.Anime,
+			AnimeKnown: meta.MetadataOverrides.Anime != nil ||
+				(meta.ProviderMetadata.TMDB != nil && meta.ProviderMetadata.TMDB.OriginalLanguage != "" && meta.ProviderMetadata.TMDB.GenreIDs != ""),
 		},
 		Disc:        collectedDiscFacts(meta),
 		Assessments: assessments,

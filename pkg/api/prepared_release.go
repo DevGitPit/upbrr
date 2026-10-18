@@ -267,6 +267,7 @@ type MediaFacts struct {
 	Distributor                          string
 	Region                               string
 	VideoCodec                           string
+	VideoEncoder                         string
 	VideoEncode                          string
 	HasEncodeSettings                    bool
 	BitDepth                             string
@@ -287,6 +288,7 @@ type MediaFacts struct {
 	ServiceLongName   string
 	MediaInfoUniqueID string
 	Anime             bool
+	AnimeKnown        bool
 }
 
 // DiscFacts contains typed disc measurements that are safe to publish as

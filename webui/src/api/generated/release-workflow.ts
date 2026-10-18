@@ -455,6 +455,19 @@ export type DupeAssessmentRef = Readonly<{
   revision: WorkflowRevision;
 }>;
 
+export type DupeComparisonEvidence = Readonly<{
+  candidate: DupeReleaseEvidence;
+  candidateFingerprint?: WorkflowFingerprint;
+  candidateId?: string;
+  defectImproved?: boolean;
+  meaningfulBenefit?: string;
+  quality?: string;
+  replacement?: string;
+  reviewed?: boolean;
+  source?: string;
+  visualImprovement?: boolean;
+}>;
+
 export type DupeDecision = string;
 
 export type DupeMatchProjection = Readonly<{
@@ -464,6 +477,7 @@ export type DupeMatchProjection = Readonly<{
   date?: string;
   edition?: string;
   episode?: number;
+  evidenceFingerprint?: WorkflowFingerprint;
   evidenceStatus?: HDREvidenceStatus;
   flags?: readonly string[];
   group?: string;
@@ -495,6 +509,16 @@ export type DupeReason = Readonly<{
 }>;
 
 export type DupeRelation = string;
+
+export type DupeReleaseEvidence = Readonly<{
+  backCatalogue?: string;
+  discForm?: string;
+  discIdentity?: string;
+  group?: string;
+  hdrLayerSource?: string;
+  internalStatus?: string;
+  personalRelease?: boolean;
+}>;
 
 export type DupeSearchEvidence = Readonly<{
   candidateCount: number;
@@ -1151,6 +1175,7 @@ export type MediaDiscPlan = Readonly<{
 
 export type MediaFacts = Readonly<{
   Anime: boolean;
+  AnimeKnown: boolean;
   Audio: string;
   AudioAbsent: boolean;
   AudioLanguages: readonly string[];
@@ -1198,6 +1223,7 @@ export type MediaFacts = Readonly<{
   UHD: string;
   VideoCodec: string;
   VideoEncode: string;
+  VideoEncoder: string;
   WebDV: boolean;
 }>;
 
@@ -1206,14 +1232,19 @@ export type MediaFileFact = Readonly<{
   AudioStatus: MetadataEvidenceStatus;
   BitDepth: string;
   Container: string;
+  EncodeSettingsKnown: boolean;
   FileName: string;
+  HDRFacts: HDRFacts;
+  HasEncodeSettings: boolean;
   Primary: boolean;
   Resolution: string;
+  ResourceID: string;
   Source: string;
   SubtitleLanguages: readonly string[];
   SubtitleStatus: MetadataEvidenceStatus;
   VideoCodec: string;
   VideoEncode: string;
+  VideoEncoder: string;
   VideoTrackCount: number;
 }>;
 
@@ -2677,10 +2708,12 @@ export type TrackerDuplicateCriteria = Readonly<{
 
 export type TrackerDuplicateTarget = Readonly<{
   category?: string;
+  comparisons?: readonly DupeComparisonEvidence[];
   container?: string;
   date?: string;
   edition?: string;
   episode?: number;
+  evidence: DupeReleaseEvidence;
   fileNames?: readonly string[];
   group?: string;
   hdr: HDRFacts;
@@ -2994,10 +3027,12 @@ export type TrackerTaxonomyValue = Readonly<{
 export type TrackerTitleSearchEvidence = Readonly<{
   checkedAt: string;
   configFingerprint: WorkflowFingerprint;
+  englishSubtitleTorrentCount: number;
   freshUntil: string;
   policyId: string;
   resultFingerprint: WorkflowFingerprint;
   status: MetadataEvidenceStatus;
+  subtitleInspectedTorrentCount: number;
   titleFingerprint: WorkflowFingerprint;
   torrentCount: number;
 }>;

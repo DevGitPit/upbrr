@@ -25,9 +25,11 @@ import (
 	"github.com/autobrr/upbrr/internal/languageutil"
 	"github.com/autobrr/upbrr/internal/mediafacts"
 	"github.com/autobrr/upbrr/internal/metadata/discparse"
+	"github.com/autobrr/upbrr/internal/metadata/mediainfo"
 	"github.com/autobrr/upbrr/internal/metadata/metautil"
 	pathutil "github.com/autobrr/upbrr/internal/pathing"
 	"github.com/autobrr/upbrr/internal/redaction"
+	"github.com/autobrr/upbrr/internal/services/db"
 	"github.com/autobrr/upbrr/pkg/api"
 )
 
@@ -111,8 +113,26 @@ func (s *Service) deriveMediaFacts(ctx context.Context, meta preparationstate.St
 		return preparationstate.State{}, err
 	}
 
+	if meta.MetadataRequirements.InspectProgrammeTracks && meta.DiscType == "" && len(meta.FileList) > 0 && s.mi != nil {
+		root, cacheErr := db.Subdir(s.cfg.MainSettings.DBPath, "tmp")
+		if cacheErr != nil {
+			return preparationstate.State{}, fmt.Errorf("primary inspection cache: %w", cacheErr)
+		}
+		fingerprint := meta.MediaInspectionFingerprint
+		if fingerprint == "" {
+			fingerprint = meta.SourceFingerprint
+		}
+		var reports mediainfo.Result
+		miDoc, reports, err = inspectFileMediaInfoReports(ctx, s.mi, meta.VideoPath, fingerprint, root)
+		if err != nil {
+			return preparationstate.State{}, fmt.Errorf("primary inspection: %w", err)
+		}
+		meta.MediaInfoJSONPath, meta.MediaInfoTextPath = reports.JSONPath, reports.TextPath
+	}
+
 	meta.MediaInfoUniqueID, meta.MediaInfoUniqueIDPresent = validateMediaInfoUniqueID(meta, miDoc)
 	meta.VideoBitrate = videoBitrateAssessment(miDoc)
+	meta.VideoEncoder = measuredVideoEncoder(miDoc)
 	if !meta.MediaInfoUniqueIDPresent {
 		logger.Warnf("metadata: mediainfo validation failed (missing unique id)")
 	}
@@ -126,6 +146,12 @@ func (s *Service) deriveMediaFacts(ctx context.Context, meta preparationstate.St
 	// BDInfo report ordinals identify playlist evidence, not native decoder streams.
 	if slices.ContainsFunc(meta.MediaTracks, func(track api.MediaTrackFacts) bool { return track.DiscID != "" || track.PlaylistID != "" }) {
 		meta.TrackCoverageComplete = false
+	}
+	if meta.MetadataRequirements.InspectProgrammeTracks && meta.DiscType == "" && len(meta.FileList) > 0 {
+		meta, err = s.inspectProgrammeTracks(ctx, meta)
+		if err != nil {
+			return preparationstate.State{}, err
+		}
 	}
 	meta.AudioLanguages = append([]string(nil), meta.TrackAudioLanguages...)
 	meta.SubtitleLanguages = append([]string(nil), meta.TrackSubtitleLanguages...)

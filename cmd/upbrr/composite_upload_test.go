@@ -21,11 +21,13 @@ func TestCLICompositeDupeEvidenceIncludesBackendWarning(t *testing.T) {
 	const warning = "Audio-language matching is unverified. You may acknowledge this warning and continue the upload; this does not establish matching content or trump eligibility."
 	var output strings.Builder
 	printCLICompositeDupeMatches(&output, []api.DupeMatchProjection{{
-		Name:     "Example.Show.S01E02.1080p.WEB-DL-GRP",
-		Relation: api.DupeRelationManualReview,
-		Reasons:  []api.DupeReason{{Code: "pack_audio_languages_unverified", Message: warning}},
+		Name:                "Example.Show.S01E02.1080p.WEB-DL-GRP",
+		ID:                  "123",
+		EvidenceFingerprint: "comparison-fingerprint",
+		Relation:            api.DupeRelationManualReview,
+		Reasons:             []api.DupeReason{{Code: "pack_audio_languages_unverified", Message: warning}},
 	}})
-	if !strings.Contains(output.String(), warning) || !strings.Contains(output.String(), "manual_review") {
+	if !strings.Contains(output.String(), warning) || !strings.Contains(output.String(), "manual_review") || !strings.Contains(output.String(), "Candidate ID: 123; evidence fingerprint: comparison-fingerprint") {
 		t.Fatalf("CLI hid the waiver warning: %s", output.String())
 	}
 }

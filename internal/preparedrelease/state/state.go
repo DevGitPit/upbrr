@@ -145,15 +145,17 @@ func (s State) requiresMediaInfoUniqueID() bool {
 // instruction, or transport state. Callers must project it into canonical fact
 // groups or operation-owned subjects before it leaves this boundary.
 type State struct {
-	MetadataRequirements  api.MetadataRequirementSet
-	ExternalFreshness     api.ExternalFreshness
-	SourceFingerprint     string
-	SourcePath            string
-	SourceLookupURL       string
-	SourceLookupActive    bool
-	SourceLookupMode      string
-	SourceLookupTracker   string
-	SourceLookupTrackerID string
+	VideoEncoder               string
+	MediaInspectionFingerprint string
+	MetadataRequirements       api.MetadataRequirementSet
+	ExternalFreshness          api.ExternalFreshness
+	SourceFingerprint          string
+	SourcePath                 string
+	SourceLookupURL            string
+	SourceLookupActive         bool
+	SourceLookupMode           string
+	SourceLookupTracker        string
+	SourceLookupTrackerID      string
 	// BlurayReleaseID reapplies a manual selection after cached catalogue rescoring.
 	BlurayReleaseID         string
 	LookupWarnings          []string

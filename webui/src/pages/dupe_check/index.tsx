@@ -220,6 +220,11 @@ function CandidateList({ matches }: Readonly<{ matches: readonly DupeMatchProjec
             ) : (
               <span className="min-w-0 break-all">{match.name}</span>
             )}
+            {match.evidenceFingerprint ? (
+              <p className="w-full break-all text-xs text-muted-foreground">
+                Evidence reference: {match.id} / {match.evidenceFingerprint}
+              </p>
+            ) : null}
             {facts.length ? (
               <span className="text-muted-foreground text-xs">{facts.join(" · ")}</span>
             ) : null}

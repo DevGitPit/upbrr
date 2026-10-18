@@ -743,6 +743,14 @@ func printCLICompositeDupeMatches(output io.Writer, matches []api.DupeMatchProje
 			emptyCLIValue(string(match.EvidenceStatus)),
 			emptyCLIValue(string(match.HDR.Origin)),
 		)
+		if match.EvidenceFingerprint != "" {
+			fmt.Fprintf(
+				output,
+				"     Candidate ID: %s; evidence fingerprint: %s\n",
+				logging.SanitizeMessage(match.ID),
+				logging.SanitizeMessage(string(match.EvidenceFingerprint)),
+			)
+		}
 		if match.Relation == api.DupeRelationManualReview {
 			fmt.Fprintf(output, "     Policy review: %s\n", match.Relation)
 		}

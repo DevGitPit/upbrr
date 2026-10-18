@@ -12,8 +12,10 @@ const lstDupeEvidenceID = "lst-upload-rules-slots-trumping"
 
 func duplicatePolicy() *trackers.DupePolicy {
 	return &trackers.DupePolicy{
-		ID:         "lst/duplicate/v5",
-		EvidenceID: lstDupeEvidenceID,
+		ID:              "lst/duplicate/v6",
+		TargetEvidence:  duplicateEvidence,
+		CompareEvidence: compareDuplicateEvidence,
+		EvidenceID:      lstDupeEvidenceID,
 		SearchScope: trackers.DupeSearchScope{
 			MaxPages: 100,
 		},
@@ -125,7 +127,7 @@ func lstCodecCoexistenceRule(
 		},
 	)
 	return trackers.DupeRule{
-		ID:         "lst/duplicate/v5/" + id,
+		ID:         "lst/duplicate/v6/" + id,
 		EvidenceID: lstDupeEvidenceID,
 		Relation:   string(api.DupeRelationCoexists),
 		ReasonCode: reason,
@@ -135,7 +137,7 @@ func lstCodecCoexistenceRule(
 
 func lstWEBDLAlongsideWEBRipRule() trackers.DupeRule {
 	return trackers.DupeRule{
-		ID:               "lst/duplicate/v5/proposed_webdl_alongside_webrip",
+		ID:               "lst/duplicate/v6/proposed_webdl_alongside_webrip",
 		EvidenceID:       lstDupeEvidenceID,
 		Relation:         string(api.DupeRelationCoexists),
 		ReasonCode:       "lst_webdl_retains_slot",
@@ -165,14 +167,14 @@ func lstWEBDLHDRPrecedenceRules() []trackers.DupeRule {
 		{
 			combined:       "dolby_vision+hdr10",
 			base:           "hdr10",
-			proposedRuleID: "lst/duplicate/v5/proposed_dv_hdr_over_hdr10",
-			existingRuleID: "lst/duplicate/v5/existing_dv_hdr_over_hdr10",
+			proposedRuleID: "lst/duplicate/v6/proposed_dv_hdr_over_hdr10",
+			existingRuleID: "lst/duplicate/v6/existing_dv_hdr_over_hdr10",
 		},
 		{
 			combined:       "dolby_vision+hdr10_plus",
 			base:           "hdr10_plus",
-			proposedRuleID: "lst/duplicate/v5/proposed_dv_hdr_over_hdr10_plus",
-			existingRuleID: "lst/duplicate/v5/existing_dv_hdr_over_hdr10_plus",
+			proposedRuleID: "lst/duplicate/v6/proposed_dv_hdr_over_hdr10_plus",
+			existingRuleID: "lst/duplicate/v6/existing_dv_hdr_over_hdr10_plus",
 		},
 	} {
 		rules = append(rules,
@@ -233,7 +235,7 @@ func lstWEBDLHDRRule(id string, targetHDR string, candidateHDR string, relation 
 func lstSubjectiveSlotRules() []trackers.DupeRule {
 	return []trackers.DupeRule{
 		{
-			ID:                 "lst/duplicate/v5/full_disc_content_review",
+			ID:                 "lst/duplicate/v6/full_disc_content_review",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_full_disc_content_review",
 			RequiresManualStep: true,
@@ -247,7 +249,7 @@ func lstSubjectiveSlotRules() []trackers.DupeRule {
 			},
 		},
 		{
-			ID:                 "lst/duplicate/v5/encode_quality_or_master_review",
+			ID:                 "lst/duplicate/v6/encode_quality_or_master_review",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_encode_quality_or_master_review",
 			RequiresManualStep: true,
@@ -264,7 +266,7 @@ func lstSubjectiveSlotRules() []trackers.DupeRule {
 			},
 		},
 		{
-			ID:                 "lst/duplicate/v5/remux_master_review",
+			ID:                 "lst/duplicate/v6/remux_master_review",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_remux_master_review",
 			RequiresManualStep: true,
@@ -281,7 +283,7 @@ func lstSubjectiveSlotRules() []trackers.DupeRule {
 		{
 			// LST's hybrid slot keeps DV HDR10+ over DV HDR. HDR facts alone
 			// cannot establish web-sourced layers or shared hybrid-slot eligibility.
-			ID:                 "lst/duplicate/v5/hybrid_remux_hdr_slot_review",
+			ID:                 "lst/duplicate/v6/hybrid_remux_hdr_slot_review",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_hybrid_remux_hdr_slot_review",
 			RequiresManualStep: true,
@@ -312,7 +314,7 @@ func lstSubjectiveSlotRules() []trackers.DupeRule {
 			},
 		},
 		{
-			ID:                 "lst/duplicate/v5/proposed_webrip_requires_comparison",
+			ID:                 "lst/duplicate/v6/proposed_webrip_requires_comparison",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_webrip_comparison_required",
 			RequiresManualStep: true,
@@ -330,7 +332,7 @@ func lstSubjectiveSlotRules() []trackers.DupeRule {
 			},
 		},
 		{
-			ID:                 "lst/duplicate/v5/webrip_quality_review",
+			ID:                 "lst/duplicate/v6/webrip_quality_review",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_webrip_quality_review",
 			RequiresManualStep: true,
@@ -346,7 +348,7 @@ func lstSubjectiveSlotRules() []trackers.DupeRule {
 			},
 		},
 		{
-			ID:                 "lst/duplicate/v5/2160p_webdl_lossless_audio_review",
+			ID:                 "lst/duplicate/v6/2160p_webdl_lossless_audio_review",
 			EvidenceID:         lstDupeEvidenceID,
 			ReasonCode:         "lst_2160p_webdl_lossless_audio_review",
 			RequiresManualStep: true,
@@ -380,26 +382,26 @@ func lstMasterSensitiveHDRRules() []trackers.DupeRule {
 		{
 			targetHDR:    "dolby_vision+hdr10",
 			candidateHDR: "hdr10",
-			encodeRuleID: "lst/duplicate/v5/encode_proposed_dv_hdr_over_hdr10_review",
-			remuxRuleID:  "lst/duplicate/v5/remux_proposed_dv_hdr_over_hdr10_review",
+			encodeRuleID: "lst/duplicate/v6/encode_proposed_dv_hdr_over_hdr10_review",
+			remuxRuleID:  "lst/duplicate/v6/remux_proposed_dv_hdr_over_hdr10_review",
 		},
 		{
 			targetHDR:    "hdr10",
 			candidateHDR: "dolby_vision+hdr10",
-			encodeRuleID: "lst/duplicate/v5/encode_existing_dv_hdr_over_hdr10_review",
-			remuxRuleID:  "lst/duplicate/v5/remux_existing_dv_hdr_over_hdr10_review",
+			encodeRuleID: "lst/duplicate/v6/encode_existing_dv_hdr_over_hdr10_review",
+			remuxRuleID:  "lst/duplicate/v6/remux_existing_dv_hdr_over_hdr10_review",
 		},
 		{
 			targetHDR:    "dolby_vision+hdr10_plus",
 			candidateHDR: "hdr10_plus",
-			encodeRuleID: "lst/duplicate/v5/encode_proposed_dv_hdr_over_hdr10_plus_review",
-			remuxRuleID:  "lst/duplicate/v5/remux_proposed_dv_hdr_over_hdr10_plus_review",
+			encodeRuleID: "lst/duplicate/v6/encode_proposed_dv_hdr_over_hdr10_plus_review",
+			remuxRuleID:  "lst/duplicate/v6/remux_proposed_dv_hdr_over_hdr10_plus_review",
 		},
 		{
 			targetHDR:    "hdr10_plus",
 			candidateHDR: "dolby_vision+hdr10_plus",
-			encodeRuleID: "lst/duplicate/v5/encode_existing_dv_hdr_over_hdr10_plus_review",
-			remuxRuleID:  "lst/duplicate/v5/remux_existing_dv_hdr_over_hdr10_plus_review",
+			encodeRuleID: "lst/duplicate/v6/encode_existing_dv_hdr_over_hdr10_plus_review",
+			remuxRuleID:  "lst/duplicate/v6/remux_existing_dv_hdr_over_hdr10_plus_review",
 		},
 	} {
 		rules = append(rules,

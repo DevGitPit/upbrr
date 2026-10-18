@@ -26,7 +26,7 @@ import (
 
 // ContractVersion changes whenever prepared fact semantics or the private seed
 // contract become incompatible, forcing persisted generations to be recomputed.
-const ContractVersion = "prepared-release-v42"
+const ContractVersion = "prepared-release-v43"
 
 // Store is the prepared-release persistence port. Implementations must commit
 // facts, identity, and provider metadata as one generation transaction.
@@ -405,6 +405,7 @@ func (m *Module) PrepareResolved(ctx context.Context, resolved api.ResolvedPrepa
 	}
 	if input.Instructions.Metadata.Anime != nil {
 		collected.Media.Anime = *input.Instructions.Metadata.Anime
+		collected.Media.AnimeKnown = true
 	}
 	preparedAt := m.now().UTC()
 	release := api.PreparedRelease{

@@ -183,6 +183,9 @@ func EvaluatePreparationRules(
 	subject api.TrackerValidationSubject,
 	fallback ValidationPolicyBinding,
 ) ([]api.RuleFailure, error) {
+	if input.Projection != nil {
+		subject.FinalizedUploadName = input.Projection.UploadReleaseName
+	}
 	if input.validationRegistry == nil {
 		if fallback.Check == nil {
 			return nil, nil

@@ -4,6 +4,7 @@
 package lst
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -53,7 +54,7 @@ func ordinaryCompatibilitySubject() api.TrackerValidationSubject {
 }
 
 func ordinaryCompatibilityQuestionnaire(subject api.TrackerValidationSubject) *api.TrackerQuestionnaire {
-	return languageQuestionnaire(trackers.PreparationInput{Meta: api.UploadSubject{
+	return compatibilityQuestionnaire(trackers.PreparationInput{Meta: api.UploadSubject{
 		Type:                        subject.Type,
 		Source:                      subject.Source,
 		DiscType:                    subject.DiscType,
@@ -73,7 +74,7 @@ func TestLSTOrdinaryCompatibilityIsAutomatic(t *testing.T) {
 				if got := compatibilityMix(subject, companion, compatibilityMixes(subject.LanguageFacts, companion)); got != "main" {
 					t.Fatalf("clear measured relationship not resolved: %q", got)
 				}
-				failures := compatibilityFailures(subject)
+				failures := compatibilityFailures(reviewedCompatibilitySubject(subject))
 				for _, failure := range failures {
 					if failure.Disposition != api.RuleDispositionAdvisory {
 						t.Fatalf("ordinary companion blocked: %+v", failure)
@@ -135,7 +136,7 @@ func TestLSTAutomaticCompatibilityKeepsUncertainty(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			subject := ordinaryCompatibilitySubject()
 			test.mutate(&subject)
-			failures := compatibilityFailures(subject)
+			failures := compatibilityFailures(reviewedCompatibilitySubject(subject))
 			if !slices.ContainsFunc(failures, func(f api.RuleFailure) bool {
 				return f.Rule == "language_compatibility_missing" && f.Disposition == api.RuleDispositionStrict
 			}) {
@@ -158,7 +159,7 @@ func TestLSTAutomaticCompatibilityPreservesManualAnswers(t *testing.T) {
 			subject := ordinaryCompatibilitySubject()
 			key := trackers.LanguageQuestionKey(subject, "compatibility_mix_companion")
 			subject.QuestionnaireAnswers = map[string]string{key: answer}
-			failures := compatibilityFailures(subject)
+			failures := compatibilityFailures(reviewedCompatibilitySubject(subject))
 			blocked := slices.ContainsFunc(failures, func(f api.RuleFailure) bool { return f.Disposition == api.RuleDispositionStrict })
 			if blocked != (answer != "main") {
 				t.Fatalf("manual answer %q overridden: %+v", answer, failures)
@@ -198,7 +199,7 @@ func TestLSTExplicitCompatibilityKeepsLegacyCommentaryFlag(t *testing.T) {
 	subject := ordinaryCompatibilitySubject()
 	subject.LanguageFacts.Tracks[1].Role = api.AudioRoleCompatibility
 	subject.LanguageFacts.Tracks[1].Commentary = true
-	for _, failure := range compatibilityFailures(subject) {
+	for _, failure := range compatibilityFailures(reviewedCompatibilitySubject(subject)) {
 		if failure.Disposition != api.RuleDispositionAdvisory {
 			t.Fatalf("title-labeled compatibility lost its legacy flag support: %+v", failure)
 		}
@@ -208,7 +209,7 @@ func TestLSTExplicitCompatibilityKeepsLegacyCommentaryFlag(t *testing.T) {
 func TestLSTAutomaticCompatibilityPreservesFullDiscBoundary(t *testing.T) {
 	subject := ordinaryCompatibilitySubject()
 	subject.Type, subject.DiscType = "DISC", "BDMV"
-	if failures := languageAssessment(subject); len(failures) != 0 {
+	if failures := languageAssessment(reviewedCompatibilitySubject(subject)); len(failures) != 0 {
 		t.Fatalf("full disc acquired language policy: %+v", failures)
 	}
 	if question := ordinaryCompatibilityQuestionnaire(subject); question != nil {
@@ -225,7 +226,7 @@ func TestLSTManualAssociationKeepsSpecialSourceMixes(t *testing.T) {
 			t.Fatalf("special source mix inferred automatically: %q", got)
 		}
 		subject.QuestionnaireAnswers = map[string]string{trackers.LanguageQuestionKey(subject, "compatibility_mix_companion"): "main"}
-		for _, failure := range compatibilityFailures(subject) {
+		for _, failure := range compatibilityFailures(reviewedCompatibilitySubject(subject)) {
 			if failure.Disposition != api.RuleDispositionAdvisory {
 				t.Fatalf("explicit special source association rejected: %+v", failure)
 			}
@@ -259,7 +260,7 @@ func TestLSTRejectedCompanionRetainsRedundantProgrammeGuidance(t *testing.T) {
 func TestLSTClearMeasuredReleaseNeedsNoCompatibilityReview(t *testing.T) {
 	subject := ordinaryCompatibilitySubject()
 	subject.LanguageFacts.Tracks[1].Codec = "DD+ Atmos"
-	for _, failure := range languageAssessment(subject) {
+	for _, failure := range compatibilityFailures(reviewedCompatibilitySubject(subject)) {
 		if failure.Disposition != api.RuleDispositionAdvisory {
 			t.Fatalf("clear measured release blocked: %+v", failure)
 		}
@@ -279,7 +280,7 @@ func TestLSTUnknownCodecCannotEstablishCompatibility(t *testing.T) {
 		if manual {
 			subject.QuestionnaireAnswers = map[string]string{trackers.LanguageQuestionKey(subject, "compatibility_mix_"+companion.ID): other.ID}
 		}
-		if failures := compatibilityFailures(subject); !slices.ContainsFunc(failures, func(f api.RuleFailure) bool {
+		if failures := compatibilityFailures(reviewedCompatibilitySubject(subject)); !slices.ContainsFunc(failures, func(f api.RuleFailure) bool {
 			return f.Rule == "language_compatibility_mix" && f.Disposition == api.RuleDispositionStrict
 		}) {
 			t.Fatalf("unknown-codec mix accepted, manual=%t: %+v", manual, failures)
@@ -343,7 +344,7 @@ func TestLSTCompatibilityQuestionnaireEligibility(t *testing.T) {
 				UploadReady:   true,
 				Questionnaire: trackers.ProjectQuestionnaire(ordinaryCompatibilityQuestionnaire(subject)),
 			}
-			failures := compatibilityFailures(subject)
+			failures := compatibilityFailures(reviewedCompatibilitySubject(subject))
 			if err := trackers.ApplyProjectionRuleFailures(&projection, failures, api.WorkflowExecutionModeNormal, "", nil); err != nil {
 				t.Fatal(err)
 			}
@@ -359,4 +360,38 @@ func TestLSTCompatibilityQuestionnaireEligibility(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Restrict assignment assertions to the compatibility relationship fields.
+func compatibilityQuestionnaire(input trackers.PreparationInput) *api.TrackerQuestionnaire {
+	q := languageQuestionnaire(input)
+	if q == nil {
+		return nil
+	}
+	fields := q.Fields[:0]
+	for _, field := range q.Fields {
+		if strings.HasPrefix(field.Key, "compatibility_mix_") {
+			fields = append(fields, field)
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	q.Fields = fields
+	return q
+}
+
+// reviewedCompatibilitySubject keeps mix-assignment tests independent of the
+// separately tested required source-provenance questionnaire.
+func reviewedCompatibilitySubject(subject api.TrackerValidationSubject) api.TrackerValidationSubject {
+	subject.QuestionnaireAnswers = maps.Clone(subject.QuestionnaireAnswers)
+	if subject.QuestionnaireAnswers == nil {
+		subject.QuestionnaireAnswers = make(map[string]string)
+	}
+	for _, field := range compatibilitySourceQuestions(subject) {
+		if _, exists := subject.QuestionnaireAnswers[field.Key]; !exists {
+			subject.QuestionnaireAnswers[field.Key] = "matching_web_source"
+		}
+	}
+	return subject
 }
