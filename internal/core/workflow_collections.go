@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/autobrr/upbrr/internal/trackers"
 	"github.com/autobrr/upbrr/pkg/api"
 )
 
@@ -29,15 +28,7 @@ func (b workflowDescriptionBuilder) uploadDescriptionCollection(
 	if b.media == nil {
 		return errors.New("collection image hosting is unavailable")
 	}
-	for _, tracker := range trackerNames {
-		allowed, err := trackers.CollectionImageHostAllowed(b.media.registry, b.config, tracker, subject.ImageHostOverrides)
-		if err != nil {
-			return fmt.Errorf("workflow collection hosting: %w", err)
-		}
-		if !allowed {
-			return fmt.Errorf("slow.pics collection hosting is not allowed for %s; clear the analysis host preference or change the target tracker", tracker)
-		}
-	}
+	// Collection URLs are description links, so screenshot host restrictions do not apply.
 	service, ok := b.media.images.(collectionImageHostingService)
 	if !ok {
 		return errors.New("collection image hosting is unavailable")

@@ -64,10 +64,10 @@ supply the images and categories; audio statistics remain text. Saved final
 edited descriptions are preserved. Explicit image-upload skip does not create
 collections and can reuse only a complete compatible cached set.
 
-Tracker acceptance rules still apply. If a selected tracker disallows slow.pics,
-the operation stops with a configuration conflict; clear the analysis-host
-preference to use ordinary hosts. Grouped comparisons in collection mode do not
-fall back to ordinary image uploads.
+slow.pics collection links are direct links in descriptions, so approved-image-host
+restrictions do not apply to them. Ordinary screenshot uploads and analysis images
+uploaded without slow.pics still follow the destination's image-host policy.
+Grouped comparisons in collection mode do not fall back to ordinary image uploads.
 
 Uploads use a new anonymous session and request `public=false` and
 `optimizeImages=false`. These parameters are not guarantees of private,

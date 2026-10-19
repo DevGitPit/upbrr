@@ -911,17 +911,3 @@ func hostInList(host string, hosts []string) bool {
 	}
 	return slices.Contains(hosts, host)
 }
-
-// CollectionImageHostAllowed preserves the destination's effective acceptance
-// policy without treating a collection host as an ordinary screenshot uploader.
-func CollectionImageHostAllowed(registry *Registry, appCfg config.Config, tracker string, overrides api.ImageHostOverrides) (bool, error) {
-	name := strings.ToUpper(strings.TrimSpace(tracker))
-	if name == "" {
-		return false, nil
-	}
-	policy, err := resolveImageHostPolicyForMetadataWithRegistry(registry, name, appCfg, trackerConfigForImageHostPolicy(appCfg, name), overrides)
-	if err != nil {
-		return false, err
-	}
-	return !hostInList("slowpics", policy.failed) && (len(policy.allowed) == 0 || hostAllowed("slowpics", policy.allowed)), nil
-}

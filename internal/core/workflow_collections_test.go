@@ -99,8 +99,8 @@ func TestComparisonCollectionsKeepWholeSetsAndLegacyRoute(t *testing.T) {
 		t.Fatal("partial group was uploaded")
 	}
 	subject.ExactMedia = &api.ExactMediaAssets{CollectionHost: "slowpics", Screenshots: []api.ScreenshotImage{first, second}}
-	if err := builder.uploadComparisonCollections(t.Context(), subject, []string{"RESTRICTED"}); err == nil || len(host.inputs) != 1 {
-		t.Fatal("tracker policy was widened")
+	if err := builder.uploadComparisonCollections(t.Context(), subject, []string{"RESTRICTED"}); err != nil || len(host.inputs) != 2 || len(subject.ExactMedia.Collections) != 1 {
+		t.Fatalf("restricted tracker collection = %#v, %v", host.inputs, err)
 	}
 }
 
@@ -157,5 +157,77 @@ func TestCollectionDescriptionOutcomeRequiresExactConfirmation(t *testing.T) {
 	_, err = collectionDescriptionOutcome(cause, "input", "template")
 	if !errors.Is(err, cause) {
 		t.Fatalf("unscoped error became actionable: %v", err)
+	}
+}
+
+func TestDescriptionCollectionsIgnoreScreenshotHostPolicy(t *testing.T) {
+	for _, purpose := range []api.ScreenshotPurpose{api.ScreenshotPurposeComparison, api.ScreenshotPurposeHDRAnalysis, api.ScreenshotPurposeAudioAnalysis} {
+		for _, failed := range []bool{false, true} {
+			t.Run(string(purpose)+"/failed="+strconv.FormatBool(failed), func(t *testing.T) {
+				builder, host := collectionDescriptionBuilder(t)
+				image := api.ScreenshotImage{Path: filepath.Join(t.TempDir(), "plot.png"), Purpose: purpose}
+				subject := api.UploadSubject{ExactMedia: &api.ExactMediaAssets{CollectionHost: "slowpics"}}
+				if failed {
+					subject.ImageHostOverrides.FailedHosts = []string{"slowpics", "imgbb"}
+				}
+				var err error
+				switch purpose {
+				case api.ScreenshotPurposeComparison:
+					image.Purpose = api.ScreenshotPurposeFinal
+					image.ComparisonGroup, image.ComparisonCount = "comparison", 1
+					image.ComparisonLabel, image.ComparisonMemberLabel = "Comparison", "Source"
+					subject.ExactMedia.Screenshots = []api.ScreenshotImage{image}
+					err = builder.uploadComparisonCollections(t.Context(), subject, []string{"OPEN", "RESTRICTED"})
+				case api.ScreenshotPurposeHDRAnalysis:
+					subject.ExactMedia.HDRPlots = []api.HDRDescriptionPlot{{TargetID: "source", Image: image}}
+					err = builder.uploadHDRDescriptionImages(t.Context(), subject, []string{"OPEN", "RESTRICTED"})
+				case api.ScreenshotPurposeAudioAnalysis:
+					subject.ExactMedia.AudioTracks = []api.AudioDescriptionTrack{{Ordinal: 1, Images: []api.ScreenshotImage{image}}}
+					err = builder.uploadAudioDescriptionImages(t.Context(), subject, []string{"OPEN", "RESTRICTED"})
+				case api.ScreenshotPurposePreview, api.ScreenshotPurposeFinal, api.ScreenshotPurposeMenu:
+					t.Fatalf("unexpected purpose %q", purpose)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(host.inputs) != 1 || len(host.images) != 0 || len(subject.ExactMedia.Collections) != 1 || subject.ExactMedia.Collections[0].URL != "https://slow.pics/c/synthetic" {
+					t.Fatalf("description collection = %#v, ordinary uploads = %#v, media = %#v", host.inputs, host.images, subject.ExactMedia)
+				}
+				for _, test := range []struct {
+					host string
+					want bool
+				}{{"imgbb", !failed}, {"imgbox", false}, {"slowpics", false}} {
+					allowed, policyErr := trackers.ReusableImageHostAllowedWithRegistry(builder.media.registry, builder.config, "RESTRICTED", test.host, subject.ImageHostOverrides)
+					if policyErr != nil || allowed != test.want {
+						t.Fatalf("ordinary host %s allowed = %t, err = %v, want %t", test.host, allowed, policyErr, test.want)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestAnalysisImagesWithoutCollectionsKeepHostRestrictions(t *testing.T) {
+	for _, audio := range []bool{false, true} {
+		t.Run("audio="+strconv.FormatBool(audio), func(t *testing.T) {
+			builder, host := collectionDescriptionBuilder(t)
+			image := api.ScreenshotImage{Path: filepath.Join(t.TempDir(), "plot.png"), Purpose: api.ScreenshotPurposeHDRAnalysis}
+			subject := api.UploadSubject{
+				ImageHostOverrides: api.ImageHostOverrides{FailedHosts: []string{"imgbb"}},
+				ExactMedia:         &api.ExactMediaAssets{},
+			}
+			var err error
+			if audio {
+				image.Purpose = api.ScreenshotPurposeAudioAnalysis
+				subject.ExactMedia.AudioTracks = []api.AudioDescriptionTrack{{Ordinal: 1, Images: []api.ScreenshotImage{image}}}
+				err = builder.uploadAudioDescriptionImages(t.Context(), subject, []string{"RESTRICTED"})
+			} else {
+				subject.ExactMedia.HDRPlots = []api.HDRDescriptionPlot{{TargetID: "source", Image: image}}
+				err = builder.uploadHDRDescriptionImages(t.Context(), subject, []string{"RESTRICTED"})
+			}
+			if err == nil || len(host.inputs) != 0 || len(host.images) != 0 {
+				t.Fatalf("restricted ordinary route: err = %v, collections = %#v, images = %#v", err, host.inputs, host.images)
+			}
+		})
 	}
 }
