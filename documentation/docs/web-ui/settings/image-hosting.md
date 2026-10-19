@@ -85,5 +85,12 @@ exists. This releases that attempt's block without uploading anything. Retry
 description generation separately when ready. An upload still in progress cannot
 be cleared, and a stale confirmation cannot clear a newer attempt. Older
 reservations created before this recovery mechanism remain blocked because they
-lack the authority needed for a safe reset. Cloudflare blocking is reported
+lack the authority needed for this confirmation. Cloudflare blocking is reported
 without bypassing it.
+
+Deleting an input from **History** also removes its saved collection links and
+local slow.pics attempts, including uncertain-upload blocks. This is an explicit
+reset: it does not delete remote collections or upload anything. A later upload
+can create a new collection, so first check slow.pics if the previous attempt
+had an uncertain outcome to avoid duplicates. History cannot be deleted while
+that input has a live operation.

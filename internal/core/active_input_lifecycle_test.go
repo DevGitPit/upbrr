@@ -21,12 +21,28 @@ func TestHistoryDeleteClosesPreparedIdleInput(t *testing.T) {
 	for _, all := range []bool{false, true} {
 		t.Run(map[bool]string{false: "one", true: "all"}[all], func(t *testing.T) {
 			core, repo, source, opened := preparedIdleInputForTest(t)
+			binding := api.PreparedMediaBinding{
+				SourcePath:               source,
+				PreparedMediaFingerprint: "history-media",
+				PreparedGeneration:       1,
+			}
+			collection := api.ImageCollection{
+				Fingerprint:        "history-set",
+				ContentFingerprint: "history-content",
+				AttemptID:          "history-attempt",
+			}
+			if _, acquired, err := repo.ReserveImageCollection(t.Context(), binding, collection); err != nil || !acquired {
+				t.Fatalf("reserve history collection: acquired=%v err=%v", acquired, err)
+			}
 			if all {
 				if count, err := core.DeleteAllHistoryReleases(t.Context()); err != nil || count != 1 {
 					t.Fatalf("delete all idle history: count=%d err=%v", count, err)
 				}
 			} else if err := core.DeleteHistoryRelease(t.Context(), source); err != nil {
 				t.Fatalf("delete prepared idle history: %v", err)
+			}
+			if retained, err := repo.LoadImageCollection(t.Context(), binding, collection.Fingerprint); err != nil || retained != nil {
+				t.Fatalf("deleted history retained collection: %#v err=%v", retained, err)
 			}
 			slot, err := repo.LoadActiveInput(t.Context())
 			if err != nil || slot.State != api.ActiveInputEmpty {
@@ -195,4 +211,34 @@ func preparedIdleInputForTest(t *testing.T) (*Core, *db.SQLiteRepository, string
 		}
 	}
 	return core, repo, source, opened
+}
+
+func TestHistoryDeleteAllResetsCollectionOnlySource(t *testing.T) {
+	core, repo, source, _ := preparedIdleInputForTest(t)
+	if err := core.DeleteHistoryRelease(t.Context(), source); err != nil {
+		t.Fatal(err)
+	}
+	binding := api.PreparedMediaBinding{
+		SourcePath:               source,
+		PreparedMediaFingerprint: "orphan-media",
+		PreparedGeneration:       1,
+	}
+	collection := api.ImageCollection{
+		Fingerprint:        "orphan-set",
+		ContentFingerprint: "orphan-content",
+		AttemptID:          "orphan-attempt",
+	}
+	if _, acquired, err := repo.ReserveImageCollection(t.Context(), binding, collection); err != nil || !acquired {
+		t.Fatalf("reserve orphan collection: acquired=%v err=%v", acquired, err)
+	}
+	paths, _, err := repo.ListOrphanedHistoryPaths(t.Context())
+	if err != nil || len(paths) != 0 {
+		t.Fatalf("startup would reset uncertain collection: paths=%v err=%v", paths, err)
+	}
+	if count, err := core.DeleteAllHistoryReleases(t.Context()); err != nil || count != 1 {
+		t.Fatalf("delete all collection-only history: count=%d err=%v", count, err)
+	}
+	if retained, err := repo.LoadImageCollection(t.Context(), binding, collection.Fingerprint); err != nil || retained != nil {
+		t.Fatalf("delete all retained orphan collection: %#v err=%v", retained, err)
+	}
 }
